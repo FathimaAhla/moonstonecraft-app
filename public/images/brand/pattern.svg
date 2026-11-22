@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="140" height="140" viewBox="0 0 140 140">
+  <!-- Moonstone Craft pattern tile: moon, brush tip, leaf, flame, dots. Tile it as a CSS background. -->
+  <g fill="#025566" fill-opacity=".09">
+    <path d="M28 14a15 15 0 1 0 13 23a11 11 0 1 1-13-23z"/>
+    <path d="M98 74c7 9 9 15 9 19a9 9 0 0 1-18 0c0-4 2-10 9-19z"/>
+    <path d="M18 92c16-3 26 6 28 20c-16 3-26-6-28-20z"/>
+    <circle cx="112" cy="26" r="4"/>
+    <circle cx="66" cy="60" r="3"/>
+  </g>
+  <g fill="#F2AA20" fill-opacity=".22">
+    <path d="M76 112c5 7 7 11 7 14a7 7 0 0 1-14 0c0-3 2-7 7-14z"/>
+    <circle cx="60" cy="18" r="3.5"/>
+  </g>
+  <circle cx="124" cy="122" r="4" fill="#F9505C" fill-opacity=".14"/>
+</svg>

@@ -1,0 +1,71 @@
+code	name	figures	pots	brushes	margin	price	cost	theme	mold	theme_share	figure_cost	pot_cost	brush_cost	assembly	packing	other	size	figure_choice
+AST-1F-1P-1B	Astronaut Kit 🚀 – 1 Figure, 1 Pot, 1 Brush	1	1	1	50.0%	474.40	237.20	AST	MS-003	34.87	35.00	20.33	30.00	14.00	83.00	20.00	Small	Choose 1 of 3
+AST-1F-2P-1B	Astronaut Kit 🚀 – 1 Figure, 2 Pots, 1 Brush	1	2	1	50.0%	515.06	257.53	AST	MS-003	34.87	35.00	40.67	30.00	14.00	83.00	20.00	Small	Choose 1 of 3
+AST-1F-3P-1B	Astronaut Kit 🚀 – 1 Figure, 3 Pots, 1 Brush	1	3	1	50.0%	555.73	277.87	AST	MS-003	34.87	35.00	61.00	30.00	14.00	83.00	20.00	Small	Choose 1 of 3
+AST-2F-1P-1B	Astronaut Kit 🚀 – 2 Figures, 1 Pot, 1 Brush	2	1	1	50.0%	544.40	272.20	AST	MS-003	34.87	70.00	20.33	30.00	14.00	83.00	20.00	Small	Choose 2 of 3
+AST-2F-2P-1B	Astronaut Kit 🚀 – 2 Figures, 2 Pots, 1 Brush	2	2	1	50.0%	585.06	292.53	AST	MS-003	34.87	70.00	40.67	30.00	14.00	83.00	20.00	Small	Choose 2 of 3
+AST-2F-3P-1B	Astronaut Kit 🚀 – 2 Figures, 3 Pots, 1 Brush	2	3	1	50.0%	625.73	312.87	AST	MS-003	34.87	70.00	61.00	30.00	14.00	83.00	20.00	Small	Choose 2 of 3
+AST-3F-2P-1B	Astronaut Kit 🚀 – 3 Figures, 2 Pots, 1 Brush	3	2	1	50.0%	685.06	342.53	AST	MS-003	34.87	105.00	40.67	30.00	14.00	98.00	20.00	Medium	All 3 figures
+AST-3F-3P-1B	Astronaut Kit 🚀 – 3 Figures, 3 Pots, 1 Brush	3	3	1	50.0%	725.73	362.87	AST	MS-003	34.87	105.00	61.00	30.00	14.00	98.00	20.00	Medium	All 3 figures
+AST-4F-2P-1B	Astronaut Kit 🚀 – 4 Figures, 2 Pots, 1 Brush	4	2	1	50.0%	755.06	377.53	AST	MS-003	34.87	140.00	40.67	30.00	14.00	98.00	20.00	Medium	Mix of 3 (repeats allowed)
+AST-4F-3P-1B	Astronaut Kit 🚀 – 4 Figures, 3 Pots, 1 Brush	4	3	1	50.0%	795.73	397.87	AST	MS-003	34.87	140.00	61.00	30.00	14.00	98.00	20.00	Medium	Mix of 3 (repeats allowed)
+AST-6F-6P-1B	Astronaut Kit 🚀 – 6 Figures, 6 Pots, 1 Brush	6	6	1	50.0%	1,087.73	543.87	AST	MS-003	34.87	210.00	122.00	30.00	14.00	113.00	20.00	Large	Mix of 3 (repeats allowed)
+AST-6F-6P-2B	Astronaut Kit 🚀 – 6 Figures, 6 Pots, 2 Brushes	6	6	2	50.0%	1,147.73	573.87	AST	MS-003	34.87	210.00	122.00	60.00	14.00	113.00	20.00	Large	Mix of 3 (repeats allowed)
+AST-12F-6P-2B	Astronaut Kit 🚀 – 12 Figures, 6 Pots, 2 Brushes	12	6	2	50.0%	1,631.73	815.87	AST	MS-003	34.87	420.00	122.00	60.00	14.00	135.00	30.00	XL	Mix of 3 (repeats allowed)
+AST-CUSTOM	Custom – Astronaut Kit 🚀 – 5 Figures, 4 Pots, 1 Brush	5	4	1	50.0%	936.40	468.20	AST	MS-003	34.87	175.00	81.33	30.00	14.00	113.00	20.00	Large	Mix of 3 (repeats allowed)
+VEH-1F-1P-1B	Vehicle Kit 🚗 – 1 Figure, 1 Pot, 1 Brush	1	1	1	50.0%	461.67	230.83	VEH	MS-001	28.50	35.00	20.33	30.00	14.00	83.00	20.00	Small	Choose 1 of 6
+VEH-1F-2P-1B	Vehicle Kit 🚗 – 1 Figure, 2 Pots, 1 Brush	1	2	1	50.0%	502.33	251.17	VEH	MS-001	28.50	35.00	40.67	30.00	14.00	83.00	20.00	Small	Choose 1 of 6
+VEH-1F-3P-1B	Vehicle Kit 🚗 – 1 Figure, 3 Pots, 1 Brush	1	3	1	50.0%	543.00	271.50	VEH	MS-001	28.50	35.00	61.00	30.00	14.00	83.00	20.00	Small	Choose 1 of 6
+VEH-2F-1P-1B	Vehicle Kit 🚗 – 2 Figures, 1 Pot, 1 Brush	2	1	1	50.0%	531.67	265.83	VEH	MS-001	28.50	70.00	20.33	30.00	14.00	83.00	20.00	Small	Choose 2 of 6
+VEH-2F-2P-1B	Vehicle Kit 🚗 – 2 Figures, 2 Pots, 1 Brush	2	2	1	50.0%	572.33	286.17	VEH	MS-001	28.50	70.00	40.67	30.00	14.00	83.00	20.00	Small	Choose 2 of 6
+VEH-2F-3P-1B	Vehicle Kit 🚗 – 2 Figures, 3 Pots, 1 Brush	2	3	1	50.0%	613.00	306.50	VEH	MS-001	28.50	70.00	61.00	30.00	14.00	83.00	20.00	Small	Choose 2 of 6
+VEH-3F-2P-1B	Vehicle Kit 🚗 – 3 Figures, 2 Pots, 1 Brush	3	2	1	50.0%	672.33	336.17	VEH	MS-001	28.50	105.00	40.67	30.00	14.00	98.00	20.00	Medium	Choose 3 of 6
+VEH-3F-3P-1B	Vehicle Kit 🚗 – 3 Figures, 3 Pots, 1 Brush	3	3	1	50.0%	713.00	356.50	VEH	MS-001	28.50	105.00	61.00	30.00	14.00	98.00	20.00	Medium	Choose 3 of 6
+VEH-4F-2P-1B	Vehicle Kit 🚗 – 4 Figures, 2 Pots, 1 Brush	4	2	1	50.0%	742.33	371.17	VEH	MS-001	28.50	140.00	40.67	30.00	14.00	98.00	20.00	Medium	Choose 4 of 6
+VEH-4F-3P-1B	Vehicle Kit 🚗 – 4 Figures, 3 Pots, 1 Brush	4	3	1	50.0%	783.00	391.50	VEH	MS-001	28.50	140.00	61.00	30.00	14.00	98.00	20.00	Medium	Choose 4 of 6
+VEH-6F-6P-1B	Vehicle Kit 🚗 – 6 Figures, 6 Pots, 1 Brush	6	6	1	50.0%	1,075.00	537.50	VEH	MS-001	28.50	210.00	122.00	30.00	14.00	113.00	20.00	Large	All 6 figures
+VEH-6F-6P-2B	Vehicle Kit 🚗 – 6 Figures, 6 Pots, 2 Brushes	6	6	2	50.0%	1,135.00	567.50	VEH	MS-001	28.50	210.00	122.00	60.00	14.00	113.00	20.00	Large	All 6 figures
+VEH-12F-6P-2B	Vehicle Kit 🚗 – 12 Figures, 6 Pots, 2 Brushes	12	6	2	50.0%	1,619.00	809.50	VEH	MS-001	28.50	420.00	122.00	60.00	14.00	135.00	30.00	XL	Mix of 6 (repeats allowed)
+VEH-CUSTOM	Custom – Vehicle Kit 🚗 – 5 Figures, 4 Pots, 1 Brush	5	4	1	50.0%	923.67	461.83	VEH	MS-001	28.50	175.00	81.33	30.00	14.00	113.00	20.00	Large	Choose 5 of 6
+FRU-2F-2P-1B	Fruits Kit 🍍 – 2 Figures, 2 Pots, 1 Brush	2	2	1	50.0%	566.33	283.17	FRU	MS-005	25.50	70.00	40.67	30.00	14.00	83.00	20.00	Small	Choose 2 of 4
+FRU-4F-2P-1B	Fruits Kit 🍍 – 4 Figures, 2 Pots, 1 Brush	4	2	1	50.0%	736.33	368.17	FRU	MS-005	25.50	140.00	40.67	30.00	14.00	98.00	20.00	Medium	All 4 figures
+FRU-4F-3P-1B	Fruits Kit 🍍 – 4 Figures, 3 Pots, 1 Brush	4	3	1	50.0%	777.00	388.50	FRU	MS-005	25.50	140.00	61.00	30.00	14.00	98.00	20.00	Medium	All 4 figures
+FRU-4F-6P-1B	Fruits Kit 🍍 – 4 Figures, 6 Pots, 1 Brush	4	6	1	50.0%	899.00	449.50	FRU	MS-005	25.50	140.00	122.00	30.00	14.00	98.00	20.00	Medium	All 4 figures
+FRU-4F-6P-2B	Fruits Kit 🍍 – 4 Figures, 6 Pots, 2 Brushes	4	6	2	50.0%	959.00	479.50	FRU	MS-005	25.50	140.00	122.00	60.00	14.00	98.00	20.00	Medium	All 4 figures
+FRU-8F-3P-1B	Fruits Kit 🍍 – 8 Figures, 3 Pots, 1 Brush	8	3	1	50.0%	1,151.00	575.50	FRU	MS-005	25.50	280.00	61.00	30.00	14.00	135.00	30.00	XL	Mix of 4 (repeats allowed)
+FRU-8F-6P-2B	Fruits Kit 🍍 – 8 Figures, 6 Pots, 2 Brushes	8	6	2	50.0%	1,333.00	666.50	FRU	MS-005	25.50	280.00	122.00	60.00	14.00	135.00	30.00	XL	Mix of 4 (repeats allowed)
+FRU-16F-6P-2B	Fruits Kit 🍍 – 16 Figures, 6 Pots, 2 Brushes	16	6	2	50.0%	1,963.00	981.50	FRU	MS-005	25.50	560.00	122.00	60.00	14.00	160.00	40.00	XXL	Mix of 4 (repeats allowed)
+FRU-CUSTOM	Custom – Fruits Kit 🍍 – 6 Figures, 4 Pots, 1 Brush	6	4	1	50.0%	987.67	493.83	FRU	MS-005	25.50	210.00	81.33	30.00	14.00	113.00	20.00	Large	Mix of 4 (repeats allowed)
+CUT-1F-1P-1B	Cutie Kit 🦋 – 1 Figure, 1 Pot, 1 Brush	1	1	1	50.0%	461.67	230.83	CUT	MS-004	28.50	35.00	20.33	30.00	14.00	83.00	20.00	Small	Choose 1 of 3
+CUT-1F-2P-1B	Cutie Kit 🦋 – 1 Figure, 2 Pots, 1 Brush	1	2	1	50.0%	502.33	251.17	CUT	MS-004	28.50	35.00	40.67	30.00	14.00	83.00	20.00	Small	Choose 1 of 3
+CUT-1F-3P-1B	Cutie Kit 🦋 – 1 Figure, 3 Pots, 1 Brush	1	3	1	50.0%	543.00	271.50	CUT	MS-004	28.50	35.00	61.00	30.00	14.00	83.00	20.00	Small	Choose 1 of 3
+CUT-2F-1P-1B	Cutie Kit 🦋 – 2 Figures, 1 Pot, 1 Brush	2	1	1	50.0%	531.67	265.83	CUT	MS-004	28.50	70.00	20.33	30.00	14.00	83.00	20.00	Small	Choose 2 of 3
+CUT-2F-2P-1B	Cutie Kit 🦋 – 2 Figures, 2 Pots, 1 Brush	2	2	1	50.0%	572.33	286.17	CUT	MS-004	28.50	70.00	40.67	30.00	14.00	83.00	20.00	Small	Choose 2 of 3
+CUT-2F-3P-1B	Cutie Kit 🦋 – 2 Figures, 3 Pots, 1 Brush	2	3	1	50.0%	613.00	306.50	CUT	MS-004	28.50	70.00	61.00	30.00	14.00	83.00	20.00	Small	Choose 2 of 3
+CUT-3F-2P-1B	Cutie Kit 🦋 – 3 Figures, 2 Pots, 1 Brush	3	2	1	50.0%	672.33	336.17	CUT	MS-004	28.50	105.00	40.67	30.00	14.00	98.00	20.00	Medium	All 3 figures
+CUT-3F-3P-1B	Cutie Kit 🦋 – 3 Figures, 3 Pots, 1 Brush	3	3	1	50.0%	713.00	356.50	CUT	MS-004	28.50	105.00	61.00	30.00	14.00	98.00	20.00	Medium	All 3 figures
+CUT-4F-2P-1B	Cutie Kit 🦋 – 4 Figures, 2 Pots, 1 Brush	4	2	1	50.0%	742.33	371.17	CUT	MS-004	28.50	140.00	40.67	30.00	14.00	98.00	20.00	Medium	Mix of 3 (repeats allowed)
+CUT-4F-3P-1B	Cutie Kit 🦋 – 4 Figures, 3 Pots, 1 Brush	4	3	1	50.0%	783.00	391.50	CUT	MS-004	28.50	140.00	61.00	30.00	14.00	98.00	20.00	Medium	Mix of 3 (repeats allowed)
+CUT-6F-6P-1B	Cutie Kit 🦋 – 6 Figures, 6 Pots, 1 Brush	6	6	1	50.0%	1,075.00	537.50	CUT	MS-004	28.50	210.00	122.00	30.00	14.00	113.00	20.00	Large	Mix of 3 (repeats allowed)
+CUT-6F-6P-2B	Cutie Kit 🦋 – 6 Figures, 6 Pots, 2 Brushes	6	6	2	50.0%	1,135.00	567.50	CUT	MS-004	28.50	210.00	122.00	60.00	14.00	113.00	20.00	Large	Mix of 3 (repeats allowed)
+CUT-12F-6P-2B	Cutie Kit 🦋 – 12 Figures, 6 Pots, 2 Brushes	12	6	2	50.0%	1,619.00	809.50	CUT	MS-004	28.50	420.00	122.00	60.00	14.00	135.00	30.00	XL	Mix of 3 (repeats allowed)
+CUT-CUSTOM	Custom – Cutie Kit 🦋 – 5 Figures, 4 Pots, 1 Brush	5	4	1	50.0%	923.67	461.83	CUT	MS-004	28.50	175.00	81.33	30.00	14.00	113.00	20.00	Large	Mix of 3 (repeats allowed)
+ALP-1F-1P-1B	Alphabet Kit 🔤 – 1 Figure, 1 Pot, 1 Brush	1	1	1	50.0%	479.67	239.83	ALP	MS-006	37.50	35.00	20.33	30.00	14.00	83.00	20.00	Small	Choose 1 of 26
+ALP-26F-6P-1B	Alphabet Kit 🔤 – 26 Figures, 6 Pots, 1 Brush	26	6	1	50.0%	2,717.00	1,358.50	ALP	MS-006	37.50	910.00	122.00	30.00	14.00	190.00	55.00	Jumbo	All 26 figures
+ALP-26F-12P-2B	Alphabet Kit 🔤 – 26 Figures, 12 Pots, 2 Brushes	26	12	2	50.0%	3,021.00	1,510.50	ALP	MS-006	37.50	910.00	244.00	60.00	14.00	190.00	55.00	Jumbo	All 26 figures
+ALP-CUSTOM	Custom – Alphabet Kit 🔤 – 10 Figures, 4 Pots, 1 Brush	10	4	1	50.0%	1,355.67	677.83	ALP	MS-006	37.50	350.00	81.33	30.00	14.00	135.00	30.00	XL	Choose 10 of 26
+FLW-9F-2P-1B	Flower Kit 🌸 – 9 Figures, 2 Pots, 1 Brush	9	2	1	50.0%	1,180.33	590.17	FLW	MS-002	25.50	315.00	40.67	30.00	14.00	135.00	30.00	XL	All 9 figures
+FLW-9F-3P-1B	Flower Kit 🌸 – 9 Figures, 3 Pots, 1 Brush	9	3	1	50.0%	1,221.00	610.50	FLW	MS-002	25.50	315.00	61.00	30.00	14.00	135.00	30.00	XL	All 9 figures
+FLW-9F-6P-1B	Flower Kit 🌸 – 9 Figures, 6 Pots, 1 Brush	9	6	1	50.0%	1,343.00	671.50	FLW	MS-002	25.50	315.00	122.00	30.00	14.00	135.00	30.00	XL	All 9 figures
+FLW-9F-6P-2B	Flower Kit 🌸 – 9 Figures, 6 Pots, 2 Brushes	9	6	2	50.0%	1,403.00	701.50	FLW	MS-002	25.50	315.00	122.00	60.00	14.00	135.00	30.00	XL	All 9 figures
+FLW-18F-3P-1B	Flower Kit 🌸 – 18 Figures, 3 Pots, 1 Brush	18	3	1	50.0%	1,921.00	960.50	FLW	MS-002	25.50	630.00	61.00	30.00	14.00	160.00	40.00	XXL	Mix of 9 (repeats allowed)
+FLW-18F-6P-1B	Flower Kit 🌸 – 18 Figures, 6 Pots, 1 Brush	18	6	1	50.0%	2,043.00	1,021.50	FLW	MS-002	25.50	630.00	122.00	30.00	14.00	160.00	40.00	XXL	Mix of 9 (repeats allowed)
+FLW-18F-6P-2B	Flower Kit 🌸 – 18 Figures, 6 Pots, 2 Brushes	18	6	2	50.0%	2,103.00	1,051.50	FLW	MS-002	25.50	630.00	122.00	60.00	14.00	160.00	40.00	XXL	Mix of 9 (repeats allowed)
+FLW-CUSTOM	Custom – Flower Kit 🌸 – 12 Figures, 4 Pots, 1 Brush	12	4	1	50.0%	1,471.67	735.83	FLW	MS-002	25.50	420.00	81.33	30.00	14.00	135.00	30.00	XL	Mix of 9 (repeats allowed)
+OCN-6F-2P-1B	Ocean Kit 🌊 – 6 Figures, 2 Pots, 1 Brush	6	2	1	50.0%	906.33	453.17	OCN	MS-007	25.50	210.00	40.67	30.00	14.00	113.00	20.00	Large	All 6 figures
+OCN-6F-3P-1B	Ocean Kit 🌊 – 6 Figures, 3 Pots, 1 Brush	6	3	1	50.0%	947.00	473.50	OCN	MS-007	25.50	210.00	61.00	30.00	14.00	113.00	20.00	Large	All 6 figures
+OCN-6F-6P-1B	Ocean Kit 🌊 – 6 Figures, 6 Pots, 1 Brush	6	6	1	50.0%	1,069.00	534.50	OCN	MS-007	25.50	210.00	122.00	30.00	14.00	113.00	20.00	Large	All 6 figures
+OCN-6F-6P-2B	Ocean Kit 🌊 – 6 Figures, 6 Pots, 2 Brushes	6	6	2	50.0%	1,129.00	564.50	OCN	MS-007	25.50	210.00	122.00	60.00	14.00	113.00	20.00	Large	All 6 figures
+OCN-12F-3P-1B	Ocean Kit 🌊 – 12 Figures, 3 Pots, 1 Brush	12	3	1	50.0%	1,431.00	715.50	OCN	MS-007	25.50	420.00	61.00	30.00	14.00	135.00	30.00	XL	Mix of 6 (repeats allowed)
+OCN-12F-6P-2B	Ocean Kit 🌊 – 12 Figures, 6 Pots, 2 Brushes	12	6	2	50.0%	1,613.00	806.50	OCN	MS-007	25.50	420.00	122.00	60.00	14.00	135.00	30.00	XL	Mix of 6 (repeats allowed)
+OCN-CUSTOM	Custom – Ocean Kit 🌊 – 8 Figures, 4 Pots, 1 Brush	8	4	1	50.0%	1,191.67	595.83	OCN	MS-007	25.50	280.00	81.33	30.00	14.00	135.00	30.00	XL	Mix of 6 (repeats allowed)
