@@ -10,7 +10,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  APP_PATH: /home/moonstonecraft-app/htdocs/app.moonstonecraft.lk
+  SITE_URL: https://app.moonstonecraft.lk
+  APP_PATH: /home/moonstonecraft-app/htdocs/app.moonstonecraft.lk/
 
 jobs:
   deploy:
