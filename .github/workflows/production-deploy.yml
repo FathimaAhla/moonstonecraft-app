@@ -114,7 +114,12 @@ jobs:
           EOF
 
       - name: Smoke test
+        env:
+          SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
         run: |
-          code=$(curl -sL -o /dev/null -w '%{http_code}' --max-time 30 "$SITE_URL/up")
+          # Hit the origin directly: Cloudflare (or similar) returns 403 to GitHub runner IPs.
+          host="${SITE_URL#https://}"
+          code=$(curl -sk -o /dev/null -w '%{http_code}' --max-time 30 \
+            --resolve "$host:443:$SSH_HOST" "$SITE_URL/up")
           echo "$SITE_URL/up -> $code"
           [ "$code" = "200" ]
