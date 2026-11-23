@@ -2,7 +2,8 @@ name: Deploy to Production
 
 on:
   push:
-    branches: production-deploy
+    branches:
+      - production-deploy
   workflow_dispatch:
 
 concurrency:
@@ -11,7 +12,7 @@ concurrency:
 
 env:
   SITE_URL: https://app.moonstonecraft.lk
-  APP_PATH: /home/moonstonecraft-app/htdocs/app.moonstonecraft.lk/
+  APP_PATH: /home/moonstonecraft-app/htdocs/app.moonstonecraft.lk
 
 jobs:
   deploy:
@@ -51,39 +52,41 @@ jobs:
         run: npm run build
 
       - name: Setup SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+          SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT || '22' }}
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          install -m 700 -d ~/.ssh
+          printf '%s
+' "$SSH_KEY" | tr -d '' > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H "${{ secrets.DEPLOY_SSH_HOST }}" >> ~/.ssh/known_hosts
+          ssh-keygen -y -P "" -f ~/.ssh/id_ed25519 > /dev/null             || { echo "DEPLOY_SSH_KEY is not a valid passphrase-less private key (paste the full file incl. BEGIN/END lines)"; exit 1; }
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          [ -s ~/.ssh/known_hosts ] || { echo "ssh-keyscan returned no host keys"; exit 1; }
 
       - name: Sync files to server
+        env:
+          SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT || '22' }}
         run: |
-          rsync -az --delete \
-            --exclude='.git' \
-            --exclude='.github' \
-            --exclude='.env' \
-            --exclude='node_modules' \
-            --exclude='tests' \
-            --exclude='storage/app' \
-            --exclude='storage/logs' \
-            --exclude='storage/framework/sessions' \
-            --exclude='storage/framework/cache' \
-            --exclude='public/storage' \
-            -e "ssh -i ~/.ssh/id_ed25519" \
-            ./ ${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}:${{ env.APP_PATH }}/
+          rsync -az --delete             --exclude='.git'             --exclude='.github'             --exclude='.env'             --exclude='node_modules'             --exclude='tests'             --exclude='storage/app'             --exclude='storage/logs'             --exclude='storage/framework/sessions'             --exclude='storage/framework/cache'             --exclude='public/storage'             -e "ssh -i ~/.ssh/id_ed25519 -p $SSH_PORT"             ./ "${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}:${APP_PATH}/"
 
       - name: Run remote deploy commands
+        env:
+          SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT || '22' }}
         run: |
-          ssh -i ~/.ssh/id_ed25519 ${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }} << 'EOF'
-            set -e
-            cd /home/moonstonecraft-app/htdocs/app.moonstonecraft.lk
+          # vendor/ and public/build/ were built above and synced, so no composer or npm runs on the server.
+          ssh -i ~/.ssh/id_ed25519 -p "$SSH_PORT" "${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}"             "bash -s -- '$APP_PATH'" << 'EOF'
+            set -euo pipefail
+            cd "$1"
+
+            [ -f .env ] || { echo "Missing $1/.env - create it before deploying"; exit 1; }
 
             mkdir -p storage/app/public storage/framework/{cache,sessions,views} storage/logs bootstrap/cache
 
             php artisan down --retry=60 || true
-
-            composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
+            # Always bring the site back up, even if a step below fails.
+            trap 'php artisan up' EXIT
 
             php artisan migrate --force
             php artisan storage:link || true
@@ -95,5 +98,10 @@ jobs:
             php artisan event:cache
 
             php artisan queue:restart || true
-            php artisan up
           EOF
+
+      - name: Smoke test
+        run: |
+          code=$(curl -sL -o /dev/null -w '%{http_code}' --max-time 30 "$SITE_URL/up")
+          echo "$SITE_URL/up -> $code"
+          [ "$code" = "200" ]
