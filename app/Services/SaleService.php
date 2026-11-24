@@ -44,27 +44,34 @@ class SaleService
             $courierOption = null;
 
             foreach ($data['items'] as $line) {
-                $option = ProductOption::query()->with('product', 'parts.material', 'parts.component.stages.lines.material', 'courierPacking.stages.lines.material')
-                    ->findOrFail($line['product_option_id']);
                 $qty = (float) $line['qty'];
                 $unitPrice = (float) $line['unit_price'];
-                $unitCost = $this->costing->optionCost($option);
-                $usage = $this->kits->saleUsage($option, $qty);
+
+                if (! empty($line['custom'])) {
+                    $built = $this->customItem($line, $qty);
+                    $option = null;
+                } else {
+                    $option = ProductOption::query()->with('product', 'courierPacking.stages.lines.material')->findOrFail($line['product_option_id']);
+                    $built = $this->optionItem($option, $qty);
+                }
 
                 $sale->items()->create([
-                    'product_option_id' => $option->id,
-                    'code' => $option->code,
-                    'name' => $option->product?->name.' - '.$option->name,
+                    'product_option_id' => $option?->id,
+                    'code' => $option?->code ?? 'CUSTOM',
+                    'name' => $option ? $option->product?->name.' - '.$option->name : ($line['name'] ?: 'Custom kit'),
+                    'is_custom' => $option === null,
                     'qty' => $qty,
                     'unit_price' => $unitPrice,
-                    'unit_cost' => round($unitCost, 4),
-                    'usage' => $usage,
+                    'unit_cost' => round($built['unit_cost'], 4),
+                    'usage' => $built['usage'],
+                    'contents' => $built['contents'],
+                    'allocations' => $built['allocations'],
                 ]);
 
-                $this->stock->deduct($usage, 'sale', $sale, $date);
+                $this->kits->deductUsage($built['usage'], 'sale', $sale, $date);
                 $subtotal += $qty * $unitPrice;
-                $costTotal += $qty * $unitCost;
-                $courierOption ??= ($option->courier_packing_component_id || $option->courier_fee_estimate > 0) ? $option : null;
+                $costTotal += $qty * $built['unit_cost'];
+                $courierOption ??= ($option && ($option->courier_packing_component_id || $option->courier_fee_estimate > 0)) ? $option : null;
             }
 
             $courierCost = 0.0;
@@ -72,8 +79,10 @@ class SaleService
 
             if ($sale->delivery_method === 'courier' && $courierOption) {
                 $courierCost = $this->costing->courierExtraCost($courierOption);
-                $courierUsage = $courierOption->courierPacking ? $this->costing->componentStockUsage($courierOption->courierPacking, 1) : [];
-                $this->stock->deduct($courierUsage, 'sale', $sale, $date);
+                $courierUsage = $courierOption->courierPacking
+                    ? $this->kits->plan([['component_id' => $courierOption->courierPacking->id, 'qty' => 1]], 1)['usage']
+                    : [];
+                $this->kits->deductUsage($courierUsage, 'sale', $sale, $date);
             }
 
             $sale->subtotal = round($subtotal, 2);
@@ -102,6 +111,57 @@ class SaleService
 
             return $sale;
         });
+    }
+
+    /**
+     * A catalogue kit: ready-packed kits first (no second deduction), then the rest from parts.
+     * The contents snapshot is the option's recipe at this moment.
+     *
+     * @return array{unit_cost: float, usage: array<string, mixed>, contents: array<string, mixed>, allocations: list<array<string, mixed>>}
+     */
+    private function optionItem(ProductOption $option, float $qty): array
+    {
+        $parts = $this->kits->optionParts($option);
+        $ready = $this->kits->allocateReady($option, $qty);
+        $usage = $ready['ready'] > 0 ? StockService::bag(['options' => [$option->id => $ready['ready']]]) + ['prededucted' => []] : StockService::bag() + ['prededucted' => []];
+        $unpacked = round($qty - $ready['ready'], 3);
+
+        if ($unpacked > 0) {
+            $usage = $this->kits->mergeUsages($usage, $this->kits->plan($parts, $unpacked)['usage']);
+        }
+
+        $snapshot = $this->costing->snapshot($parts, 1);
+
+        return [
+            'unit_cost' => $snapshot['cost'],
+            'usage' => $usage,
+            'contents' => ['custom' => false, 'packed_qty' => $ready['ready'], 'unpacked_qty' => $unpacked, 'lines' => $snapshot['lines']],
+            'allocations' => $ready['allocations'],
+        ];
+    }
+
+    /**
+     * A custom kit built for this sale from chosen components and materials.
+     *
+     * @param  array<string, mixed>  $line
+     * @return array{unit_cost: float, usage: array<string, mixed>, contents: array<string, mixed>, allocations: list<array<string, mixed>>}
+     */
+    private function customItem(array $line, float $qty): array
+    {
+        $parts = collect($line['parts'])->map(fn ($part) => [
+            'component_id' => ($part['type'] ?? '') === 'component' ? $part['id'] : null,
+            'material_id' => ($part['type'] ?? '') === 'material' ? $part['id'] : null,
+            'qty' => $part['qty'],
+        ])->all();
+        $plan = $this->kits->plan($parts, $qty);
+        $snapshot = $this->costing->snapshot($parts, 1);
+
+        return [
+            'unit_cost' => $snapshot['cost'],
+            'usage' => $plan['usage'],
+            'contents' => ['custom' => true, 'packed_qty' => 0, 'unpacked_qty' => $qty, 'lines' => $snapshot['lines']],
+            'allocations' => [],
+        ];
     }
 
     /**
@@ -157,10 +217,11 @@ class SaleService
     {
         DB::transaction(function () use ($sale) {
             foreach ($sale->items as $item) {
-                $this->stock->restore($item->usage ?? [], 'adjustment', $sale);
+                $this->kits->restoreUsage($item->usage ?? [], 'adjustment', $sale);
+                $this->kits->returnAllocations($item->allocations ?? []);
             }
 
-            $this->stock->restore($sale->courier_usage ?? [], 'adjustment', $sale);
+            $this->kits->restoreUsage($sale->courier_usage ?? [], 'adjustment', $sale);
             $sale->delete();
         });
     }

@@ -9,7 +9,8 @@ import * as customers from '@/routes/customers';
 import * as salePayments from '@/routes/sale-payments';
 import * as sales from '@/routes/sales';
 
-type Item = { id: number; code: string; name: string; qty: number; unit_price: number };
+type Content = { kind: string; name: string; qty: number; unit: string };
+type Item = { id: number; code: string; name: string; qty: number; unit_price: number; is_custom?: boolean; contents?: { packed_qty: number; unpacked_qty: number; lines: Content[] } | null };
 type Payment = { id: number; paid_on: string; amount: number; cod_fee: number; method: string; reference: string | null };
 type Sale = {
     id: number; invoice_no: string; sold_on: string; sale_type: string; payment_method: string; delivery_method: string; delivery_address: string | null;
@@ -52,7 +53,19 @@ export default function SaleShow({ sale, profit, publicLink }: { sale: Sale; pro
                             <thead><tr><th>Code</th><th>Name</th><th className="text-right">Qty</th><th className="text-right">Price</th><th className="text-right">Total</th></tr></thead>
                             <tbody>
                                 {sale.items.map((i) => (
-                                    <tr key={i.id}><td className="font-mono">{i.code}</td><td>{i.name}</td><td className="text-right">{num(i.qty, 3)}</td><td className="text-right tabular-nums">{rs(i.unit_price)}</td><td className="text-right tabular-nums">{rs(i.qty * i.unit_price)}</td></tr>
+                                    <tr key={i.id}>
+                                        <td className="font-mono">{i.code}</td>
+                                        <td>
+                                            {i.name}
+                                            {i.contents && (
+                                                <details className="text-xs text-muted-foreground">
+                                                    <summary className="cursor-pointer">Saved contents{i.is_custom ? ' (custom kit)' : ` (${num(i.contents.packed_qty, 0)} packed, ${num(i.contents.unpacked_qty, 0)} made to order)`}</summary>
+                                                    <ul className="mt-1 list-disc pl-4 whitespace-normal">{i.contents.lines.map((c, n) => <li key={n}>{num(c.qty, 3)} {c.unit} {c.name}</li>)}</ul>
+                                                </details>
+                                            )}
+                                        </td>
+                                        <td className="text-right">{num(i.qty, 3)}</td><td className="text-right tabular-nums">{rs(i.unit_price)}</td><td className="text-right tabular-nums">{rs(i.qty * i.unit_price)}</td>
+                                    </tr>
                                 ))}
                                 <tr><td colSpan={4}>Subtotal</td><td className="text-right tabular-nums">{rs(sale.subtotal)}</td></tr>
                                 {sale.discount > 0 && <tr><td colSpan={4}>Discount</td><td className="text-right tabular-nums">-{rs(sale.discount)}</td></tr>}

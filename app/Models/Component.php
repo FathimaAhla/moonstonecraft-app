@@ -28,6 +28,7 @@ class Component extends Model
             'wastage_pct' => 'float',
             'keeps_stock' => 'boolean',
             'stock' => 'float',
+            'prededucted_stock' => 'float',
             'reorder_level' => 'float',
             'active' => 'boolean',
         ];

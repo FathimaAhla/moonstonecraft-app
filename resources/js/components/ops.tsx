@@ -67,7 +67,7 @@ export function Table({ children, className }: { children: ReactNode; className?
         <div className="overflow-x-auto">
             <table
                 className={cn(
-                    'w-full text-sm [&_td]:px-3 [&_td]:py-2 [&_td]:whitespace-nowrap [&_th]:h-10 [&_th]:whitespace-nowrap [&_th]:px-3 [&_th]:text-left [&_th]:text-xs [&_th]:font-medium [&_th]:tracking-wide [&_th]:text-muted-foreground [&_th]:uppercase [&_thead]:border-b [&_thead]:bg-muted/60 [&_tbody_tr]:border-b [&_tbody_tr]:border-border/70 [&_tbody_tr:last-child]:border-0 [&_tbody_tr:hover]:bg-muted/40',
+                    'w-full text-sm [&_td]:px-3 [&_td]:py-2 [&_td]:whitespace-nowrap [&_th]:h-10 [&_th]:whitespace-nowrap [&_th]:px-3 [&_th]:text-xs [&_th]:font-medium [&_th]:tracking-wide [&_th]:text-muted-foreground [&_th]:uppercase [&_thead]:border-b [&_thead]:bg-muted/60 [&_tbody_tr]:border-b [&_tbody_tr]:border-border/70 [&_tbody_tr:last-child]:border-0 [&_tbody_tr:hover]:bg-muted/40',
                     className,
                 )}
             >

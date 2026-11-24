@@ -55,7 +55,7 @@ class ReportService
             'cash_received' => round((float) SalePayment::query()->whereBetween('paid_on', $range)->sum('amount'), 2),
             'receivables' => round((float) Sale::query()->where('balance', '>', 0)->sum('balance'), 2),
             'purchases_total' => round((float) Purchase::query()->whereBetween('purchased_on', $range)->sum('grand_total'), 2),
-            'low_stock' => Material::query()->where('type', 'material')->whereColumn('stock', '<=', 'reorder_level')
+            'low_stock' => Material::query()->where('tracks_stock', true)->whereColumn('stock', '<=', 'reorder_level')
                 ->orderBy('name')->get(['id', 'name', 'unit', 'stock', 'reorder_level']),
             'top_options' => $this->profitByOption($from, $to)->take(5)->values(),
             'by_category' => $this->profitByCategory($from, $to),

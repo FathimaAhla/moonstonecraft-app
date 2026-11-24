@@ -3,6 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreSaleRequest;
+use App\Models\Category;
+use App\Models\Component;
+use App\Models\Customer;
+use App\Models\Material;
+use App\Models\Product;
 use App\Models\ProductOption;
 use App\Models\Sale;
 use App\Models\SalePayment;
@@ -32,11 +37,18 @@ class SaleController extends Controller
     public function create(): Response
     {
         return Inertia::render('sales/create', [
-            'options' => ProductOption::query()->with('product:id,name')->where('active', true)->orderBy('code')->get()
+            'customers' => Customer::query()->orderBy('name')->get(['id', 'name', 'phone', 'address', 'city', 'type']),
+            'categories' => Category::query()->orderBy('sort')->orderBy('name')->get(['id', 'name']),
+            'components' => Component::query()->where('active', true)->orderBy('code')->get(['id', 'code', 'name']),
+            'materials' => Material::query()->where('is_purchasable', true)->orderBy('name')->get(['id', 'name', 'unit']),
+            'kits' => Product::query()->where('active', true)->orderBy('name')->get(['id', 'name', 'category_id']),
+            'options' => ProductOption::query()->with('product:id,name,category_id')->where('active', true)->orderBy('code')->get()
                 ->map(fn (ProductOption $option) => [
                     'id' => $option->id,
                     'code' => $option->code,
-                    'name' => $option->product?->name.' - '.$option->name,
+                    'name' => $option->name,
+                    'product_id' => $option->product_id,
+                    'category_id' => $option->product?->category_id,
                     'retail_price' => $option->retail_price,
                     'wholesale_price' => $option->wholesale_price,
                 ]),

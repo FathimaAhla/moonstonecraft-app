@@ -6,10 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Field, NativeSelect, NumberInput, Page, PageHeader, Panel, Table, Textarea, rs, today } from '@/components/ops';
 import * as purchases from '@/routes/purchases';
 
-type MaterialRef = { id: number; name: string; unit: string; unit_cost: number };
-type Line = { material_id: string; qty: string; line_cost: string };
+type MaterialRef = { id: number; name: string; unit: string; unit_cost: number; purchase_unit: string | null; purchase_conversion: number };
+type Line = { material_id: string; qty: string; purchase_unit: string; conversion_factor: string; line_cost: string };
 
-const newLine = (): Line => ({ material_id: '', qty: '', line_cost: '' });
+const newLine = (): Line => ({ material_id: '', qty: '', purchase_unit: '', conversion_factor: '', line_cost: '' });
 
 export default function PurchaseCreate({ materials, suppliers }: { materials: MaterialRef[]; suppliers: { id: number; name: string }[] }) {
     const form = useForm({
@@ -34,11 +34,17 @@ export default function PurchaseCreate({ materials, suppliers }: { materials: Ma
 
     const setLine = (i: number, key: keyof Line, value: string) => form.setData('lines', d.lines.map((l, j) => (j === i ? { ...l, [key]: value } : l)));
 
+    const pickMaterial = (i: number, id: string) => {
+        const m = materials.find((x) => String(x.id) === id);
+
+        form.setData('lines', d.lines.map((l, j) => (j === i ? { ...l, material_id: id, purchase_unit: m?.purchase_unit ?? '', conversion_factor: m?.purchase_unit ? String(m.purchase_conversion) : '' } : l)));
+    };
+
     return (
         <>
             <Head title="New purchase" />
             <Page>
-                <PageHeader title="New purchase" description="Transport and other costs are spread over the lines by value to give the landed cost." />
+                <PageHeader title="New purchase" description="Only purchasable items are listed. Buy in packs and enter how many recipe units each holds; costs are worked out per recipe unit. Transport and other costs are spread by value." />
                 <form
                     className="space-y-4"
                     onSubmit={(e) => {
@@ -62,26 +68,29 @@ export default function PurchaseCreate({ materials, suppliers }: { materials: Ma
                     <Panel title="Lines">
                         {errors.lines && <p className="mb-2 text-sm text-red-600">{errors.lines}</p>}
                         <Table>
-                            <thead><tr><th>Material</th><th className="w-32">Qty</th><th className="w-36">Line cost (Rs.)</th><th className="text-right">Extra</th><th className="text-right">Landed unit</th><th /></tr></thead>
+                            <thead><tr><th>Material</th><th className="w-28 text-right">Qty bought</th><th className="w-28">Bought in</th><th className="w-28 text-right">Units each</th><th className="w-36 text-right">Line cost (Rs.)</th><th className="text-right">Extra</th><th className="text-right">Landed unit</th><th /></tr></thead>
                             <tbody>
                                 {d.lines.map((l, i) => {
                                     const cost = Number(l.line_cost) || 0;
                                     const alloc = itemsTotal > 0 ? (extra * cost) / itemsTotal : 0;
-                                    const qty = Number(l.qty) || 0;
+                                    const factor = Number(l.conversion_factor) || 1;
+                                    const qty = (Number(l.qty) || 0) * factor;
                                     const unit = materials.find((m) => String(m.id) === l.material_id)?.unit ?? '';
 
                                     return (
                                         <tr key={i}>
                                             <td>
-                                                <NativeSelect value={l.material_id} onChange={(e) => setLine(i, 'material_id', e.target.value)} aria-invalid={!!errors[`lines.${i}.material_id`]}>
+                                                <NativeSelect value={l.material_id} onChange={(e) => pickMaterial(i, e.target.value)} aria-invalid={!!errors[`lines.${i}.material_id`]}>
                                                     <option value="">Choose material...</option>
                                                     {materials.map((m) => <option key={m.id} value={m.id}>{m.name} ({m.unit})</option>)}
                                                 </NativeSelect>
                                             </td>
                                             <td><NumberInput value={l.qty} onChange={(e) => setLine(i, 'qty', e.target.value)} aria-invalid={!!errors[`lines.${i}.qty`]} /></td>
+                                            <td><Input value={l.purchase_unit} placeholder={unit} onChange={(e) => setLine(i, 'purchase_unit', e.target.value)} /></td>
+                                            <td><NumberInput value={l.conversion_factor} placeholder="1" onChange={(e) => setLine(i, 'conversion_factor', e.target.value)} aria-invalid={!!errors[`lines.${i}.conversion_factor`]} /></td>
                                             <td><NumberInput value={l.line_cost} onChange={(e) => setLine(i, 'line_cost', e.target.value)} aria-invalid={!!errors[`lines.${i}.line_cost`]} /></td>
                                             <td className="text-right tabular-nums">{rs(alloc)}</td>
-                                            <td className="text-right tabular-nums">{qty > 0 ? `${rs((cost + alloc) / qty, 4)}/${unit}` : '-'}</td>
+                                            <td className="text-right tabular-nums">{qty > 0 ? `${rs((cost + alloc) / qty, 4)}/${unit} · ${qty.toLocaleString('en-LK', { maximumFractionDigits: 3 })} ${unit}` : '-'}</td>
                                             <td className="text-right">
                                                 {d.lines.length > 1 && (
                                                     <Button type="button" variant="ghost" size="icon" onClick={() => form.setData('lines', d.lines.filter((_, j) => j !== i))}><Trash2 className="size-4" /></Button>

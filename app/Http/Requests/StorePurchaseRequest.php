@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StorePurchaseRequest extends FormRequest
 {
@@ -28,7 +29,9 @@ class StorePurchaseRequest extends FormRequest
             'notes' => ['nullable', 'string'],
             'receipt' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:10240'],
             'lines' => ['required', 'array', 'min:1'],
-            'lines.*.material_id' => ['required', 'exists:materials,id'],
+            'lines.*.material_id' => ['required', Rule::exists('materials', 'id')->where('is_purchasable', true)],
+            'lines.*.purchase_unit' => ['nullable', 'string', 'max:20'],
+            'lines.*.conversion_factor' => ['nullable', 'numeric', 'gt:0'],
             'lines.*.qty' => ['required', 'numeric', 'gt:0'],
             'lines.*.line_cost' => ['required', 'numeric', 'min:0'],
         ];
