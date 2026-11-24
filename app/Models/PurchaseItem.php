@@ -16,6 +16,8 @@ class PurchaseItem extends Model
     {
         return [
             'qty' => 'float',
+            'conversion_factor' => 'float',
+            'converted_qty' => 'float',
             'line_cost' => 'float',
             'extra_allocated' => 'float',
             'landed_unit_cost' => 'float',

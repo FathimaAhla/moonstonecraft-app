@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Component;
+use App\Models\PackRecord;
 use App\Models\ProductOption;
 use App\Models\StockMovement;
 use App\Services\Costing;
@@ -46,6 +47,14 @@ class StockController extends Controller
             'movements' => StockMovement::query()->with('component:id,code,name', 'option:id,code,name')
                 ->where(fn ($q) => $q->whereNotNull('component_id')->orWhereNotNull('product_option_id'))
                 ->latest('moved_on')->latest('id')->limit(100)->get(),
+            'packRecords' => PackRecord::query()->with('option:id,code,name')->latest('packed_on')->latest('id')->limit(40)->get()
+                ->map(fn (PackRecord $record) => [
+                    ...$record->only('id', 'qty', 'qty_remaining', 'unit_cost', 'is_legacy', 'note'),
+                    'packed_on' => $record->packed_on->toDateString(),
+                    'option' => $record->option?->code,
+                    'contents' => collect($record->contents ?? [])->map(fn ($line) => "{$line['qty']} × {$line['name']}")->implode(', '),
+                ]),
+            'legacyQty' => (float) PackRecord::query()->where('is_legacy', true)->sum('qty_remaining'),
             'adjustReasons' => KitStockService::ADJUST_REASONS,
         ]);
     }
@@ -55,7 +64,6 @@ class StockController extends Controller
         $data = $request->validate([
             'qty' => ['required', 'numeric', 'gt:0'],
             'made_on' => ['required', 'date'],
-            'use_materials' => ['boolean'],
             'note' => ['nullable', 'string', 'max:255'],
         ]);
 
@@ -63,8 +71,8 @@ class StockController extends Controller
             return $this->refuse("{$component->code} does not keep stock. Turn on \"Keeps own stock\" first.");
         }
 
-        $kits->make($component, (float) $data['qty'], Carbon::parse($data['made_on']), $request->boolean('use_materials'), $data['note'] ?? null);
-        $this->toast("Added {$data['qty']} × {$component->name} to stock.");
+        $kits->make($component, (float) $data['qty'], Carbon::parse($data['made_on']), $data['note'] ?? null);
+        $this->toast("Added {$data['qty']} × {$component->name} to stock. Materials are deducted when it is packed or sold.");
 
         return back();
     }
@@ -86,8 +94,13 @@ class StockController extends Controller
             return $this->refuse("Only {$option->stock} packed {$option->code} kits in stock.");
         }
 
-        $kits->unpack($option, (float) $data['qty'], Carbon::parse($data['packed_on']), $data['note'] ?? null);
-        $this->toast("Unpacked {$data['qty']} × {$option->code}. Parts are back in stock.");
+        $result = $kits->unpack($option, (float) $data['qty'], Carbon::parse($data['packed_on']), $data['note'] ?? null);
+
+        if ($result['unknown_qty'] > 0) {
+            $this->toast("Unpacked {$data['qty']} × {$option->code}. {$result['unknown_qty']} of them were packed before contents were recorded, so nothing could be restored for those: their original contents are unknown.", 'warning');
+        } else {
+            $this->toast("Unpacked {$data['qty']} × {$option->code}. The saved contents are back in stock.");
+        }
 
         return back();
     }

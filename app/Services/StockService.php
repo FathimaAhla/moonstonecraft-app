@@ -51,7 +51,7 @@ class StockService
         };
 
         if ($newUnitCost !== null && $item instanceof Material) {
-            $item->unit_cost = round($newUnitCost, 4);
+            $item->purchase_unit_cost = round($newUnitCost, 4);
         }
 
         $item->stock = round($item->stock + $qty, 3);

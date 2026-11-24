@@ -1,5 +1,4 @@
 import { useForm } from '@inertiajs/react';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { EmptyRow, Field, FormModal, NativeSelect, NumberInput, Table, num, rs, today } from '@/components/ops';
 import * as stock from '@/routes/stock';
@@ -25,9 +24,9 @@ export type Movement = {
 const TITLES = { make: 'Add made stock', pack: 'Pack kits', unpack: 'Unpack kits', adjust: 'Correct stock' };
 
 const DESCRIPTIONS = {
-    make: 'You made these by hand. Stock goes up; with the recipe ticked, its materials are taken out of material stock.',
-    pack: 'Parts (figures, paint pots, brushes, packing) go out of stock and the packed kits go into ready stock.',
-    unpack: 'Packed kits are opened and their parts go back into stock.',
+    make: 'You made these by hand. Part stock goes up. Materials are not deducted now: tracked materials leave stock when the part is packed into a kit or sold.',
+    pack: 'Parts and tracked materials go out of stock and the packed kits go into ready stock. The contents are saved with the packing.',
+    unpack: 'Packed kits are opened and what was saved when they were packed goes back into stock. Kits packed before contents were recorded cannot be restored.',
     adjust: 'Use a negative number to remove (damaged, missing) and a positive number to add (found, correction).',
 };
 
@@ -35,7 +34,7 @@ const DESCRIPTIONS = {
  * One modal for making parts, packing / unpacking kits and correcting stock by hand.
  */
 export function StockActionModal({ action, reasons, onClose }: { action: StockAction | null; reasons: string[]; onClose: () => void }) {
-    const form = useForm({ qty: '', date: today(), use_materials: true, reason: 'damaged', note: '' });
+    const form = useForm({ qty: '', date: today(), reason: 'damaged', note: '' });
 
     if (!action) {
         return null;
@@ -48,7 +47,7 @@ export function StockActionModal({ action, reasons, onClose }: { action: StockAc
         form.transform((data) => {
             switch (action.type) {
                 case 'make':
-                    return { qty, made_on: date, use_materials: action.hasRecipe && data.use_materials, note };
+                    return { qty, made_on: date, note };
                 case 'adjust':
                     return { qty, reason: data.reason, note };
                 default:
@@ -86,12 +85,6 @@ export function StockActionModal({ action, reasons, onClose }: { action: StockAc
                     <Input value={form.data.note} onChange={(e) => form.setData('note', e.target.value)} />
                 </Field>
             </div>
-            {action.type === 'make' && action.hasRecipe && (
-                <label className="flex items-center gap-2 text-sm">
-                    <Checkbox checked={form.data.use_materials} onCheckedChange={(v) => form.setData('use_materials', v === true)} />
-                    Take the recipe materials out of stock (e.g. paint and empty pots)
-                </label>
-            )}
         </FormModal>
     );
 }

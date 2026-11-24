@@ -33,19 +33,43 @@ class CustomerController extends Controller
         ]);
     }
 
+    public function store(Request $request): RedirectResponse
+    {
+        Customer::query()->create($this->validated($request));
+        $this->toast('Customer added.');
+
+        return back();
+    }
+
     public function update(Request $request, Customer $customer): RedirectResponse
     {
-        $customer->update($request->validate([
+        $customer->update($this->validated($request, $customer));
+        $this->toast('Customer updated.');
+
+        return back();
+    }
+
+    public function destroy(Customer $customer): RedirectResponse
+    {
+        $customer->delete();
+        $this->toast('Customer deleted. Their past sales were kept.');
+
+        return to_route('customers.index');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validated(Request $request, ?Customer $customer = null): array
+    {
+        return $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['required', 'string', 'max:30', Rule::unique('customers')->ignore($customer)],
             'address' => ['nullable', 'string'],
             'city' => ['nullable', 'string', 'max:255'],
             'type' => ['required', Rule::in(['retail', 'wholesale'])],
             'notes' => ['nullable', 'string'],
-        ]));
-        $this->toast('Customer updated.');
-
-        return back();
+        ]);
     }
 
     public function search(Request $request): JsonResponse

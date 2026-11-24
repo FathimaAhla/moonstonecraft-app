@@ -26,7 +26,7 @@ class PurchaseController extends Controller
     public function create(): Response
     {
         return Inertia::render('purchases/create', [
-            'materials' => Material::query()->where('type', 'material')->orderBy('name')->get(['id', 'name', 'unit', 'unit_cost']),
+            'materials' => Material::query()->where('is_purchasable', true)->orderBy('name')->get(['id', 'name', 'unit', 'unit_cost', 'purchase_unit', 'purchase_conversion']),
             'suppliers' => Supplier::query()->orderBy('name')->get(['id', 'name']),
         ]);
     }

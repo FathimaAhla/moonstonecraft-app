@@ -3,7 +3,7 @@ import { Pencil } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { EmptyRow, Field, FormModal, NativeSelect, Page, PageHeader, Panel, Stat, StatusBadge, Table, Textarea, rs } from '@/components/ops';
+import { DeleteButton, EmptyRow, Field, FormModal, NativeSelect, Page, PageHeader, Panel, Stat, StatusBadge, Table, Textarea, rs } from '@/components/ops';
 import * as customers from '@/routes/customers';
 import * as sales from '@/routes/sales';
 
@@ -22,6 +22,7 @@ export default function CustomerShow({ customer, sales: rows }: { customer: Cust
             <Page>
                 <PageHeader title={customer.name} description={[customer.phone, customer.address, customer.city].filter(Boolean).join(' · ')}>
                     <Button variant="outline" onClick={() => { form.clearErrors(); setOpen(true); }}><Pencil /> Edit</Button>
+                    <DeleteButton url={customers.destroy.url(customer.id)} message={`Delete ${customer.name}? Their past sales are kept.`} withText />
                 </PageHeader>
                 <div className="grid gap-4 sm:grid-cols-3">
                     <Stat label="Sales" value={String(rows.length)} hint={customer.type} />

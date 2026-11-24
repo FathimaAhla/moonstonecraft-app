@@ -31,6 +31,6 @@ class ComponentFactory extends Factory
      */
     public function keepsStock(float $stock = 0): static
     {
-        return $this->state(fn () => ['keeps_stock' => true, 'stock' => $stock]);
+        return $this->state(fn () => ['keeps_stock' => true, 'stock' => $stock, 'prededucted_stock' => $stock]);
     }
 }

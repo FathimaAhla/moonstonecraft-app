@@ -22,6 +22,6 @@ class DatabaseSeeder extends Seeder
             ['name' => 'Admin', 'password' => 'password', 'email_verified_at' => now(), 'role' => 'admin'],
         );
 
-        $this->call([CategorySeeder::class, SampleDataSeeder::class, PaintingComponentSeeder::class, PaintingKitSeeder::class]);
+        $this->call([CategorySeeder::class, SampleDataSeeder::class, PaintingComponentSeeder::class, PaintingKitSeeder::class, ExpenseSheetPurchaseSeeder::class]);
     }
 }

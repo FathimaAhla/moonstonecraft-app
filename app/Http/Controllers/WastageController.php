@@ -32,7 +32,7 @@ class WastageController extends Controller
                 'product' => round($logs->where('scope', 'product')->sum('cost'), 2),
                 'business' => round($logs->where('scope', 'business')->sum('cost'), 2),
             ],
-            'materials' => Material::query()->where('type', 'material')->orderBy('name')->get(['id', 'name', 'unit']),
+            'materials' => Material::query()->where('tracks_stock', true)->orderBy('name')->get(['id', 'name', 'unit']),
             'components' => Component::query()->orderBy('code')->get(['id', 'code', 'name']),
         ]);
     }

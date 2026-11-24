@@ -3,17 +3,23 @@ import { Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { SearchSelect } from '@/components/search-select';
 import { Field, NativeSelect, NumberInput, Page, PageHeader, Panel, Table, Textarea, rs, today } from '@/components/ops';
 import * as customers from '@/routes/customers';
 import * as sales from '@/routes/sales';
 
-type OptionRef = { id: number; code: string; name: string; retail_price: number; wholesale_price: number | null };
+type OptionRef = { id: number; code: string; name: string; product_id: number; category_id: number | null; retail_price: number; wholesale_price: number | null };
+type Named = { id: number; name: string };
+type Kit = Named & { category_id: number | null };
 type Customer = { id: number; name: string; phone: string; address: string | null; city: string | null; type: string };
-type Line = { product_option_id: string; qty: string; unit_price: string };
+type Part = { type: 'component' | 'material'; id: string; qty: string };
+type Line = { custom: boolean; name: string; parts: Part[]; category_id: string; product_id: string; product_option_id: string; qty: string; unit_price: string };
 
-const newLine = (): Line => ({ product_option_id: '', qty: '1', unit_price: '' });
+const newLine = (custom = false): Line => ({ custom, name: '', parts: [{ type: 'component', id: '', qty: '1' }], category_id: '', product_id: '', product_option_id: '', qty: '1', unit_price: '' });
 
-export default function SaleCreate({ options }: { options: OptionRef[] }) {
+type PartRef = { id: number; name: string; code?: string; unit?: string };
+
+export default function SaleCreate({ customers: savedCustomers, categories, kits, options, components, materials }: { customers: Customer[]; categories: Named[]; kits: Kit[]; options: OptionRef[]; components: PartRef[]; materials: PartRef[] }) {
     const form = useForm({
         sold_on: today(),
         sale_type: 'retail',
@@ -32,6 +38,7 @@ export default function SaleCreate({ options }: { options: OptionRef[] }) {
     const errors = form.errors as Record<string, string>;
     const [matches, setMatches] = useState<Customer[]>([]);
     const [query, setQuery] = useState('');
+    const [savedId, setSavedId] = useState('');
 
     useEffect(() => {
         if (query.trim().length < 2) {
@@ -58,6 +65,47 @@ export default function SaleCreate({ options }: { options: OptionRef[] }) {
         }
 
         return String(type === 'wholesale' && o.wholesale_price !== null ? o.wholesale_price : o.retail_price);
+    };
+
+    const pickCustomer = (id: string) => {
+        setSavedId(id);
+        const c = savedCustomers.find((x) => String(x.id) === id);
+
+        if (!c) {
+            return;
+        }
+
+        setCustomer({ phone: c.phone, name: c.name, address: c.address ?? '', city: c.city ?? '' });
+        form.setData('delivery_address', [c.address, c.city].filter(Boolean).join(', '));
+        setMatches([]);
+        setQuery('');
+    };
+
+    const kitsFor = (categoryId: string) => kits.filter((k) => !categoryId || String(k.category_id) === categoryId);
+    const optionsFor = (productId: string, categoryId: string) =>
+        options.filter((o) => (productId ? String(o.product_id) === productId : !categoryId || String(o.category_id) === categoryId));
+
+    const lineFromOption = (optionId: string): Partial<Line> => {
+        const o = options.find((x) => String(x.id) === optionId);
+
+        return o
+            ? { category_id: String(o.category_id ?? ''), product_id: String(o.product_id), product_option_id: optionId, unit_price: priceFor(optionId, d.sale_type) }
+            : { product_option_id: '', unit_price: '' };
+    };
+
+    const pickCategory = (i: number, categoryId: string) => {
+        const kitList = kitsFor(categoryId);
+        const productId = kitList.length === 1 ? String(kitList[0].id) : '';
+        const optionList = productId ? optionsFor(productId, categoryId) : [];
+
+        setLine(i, { category_id: categoryId, product_id: productId, ...(optionList.length === 1 ? lineFromOption(String(optionList[0].id)) : { product_option_id: '', unit_price: '' }) });
+    };
+
+    const pickKit = (i: number, productId: string) => {
+        const kit = kits.find((k) => String(k.id) === productId);
+        const optionList = optionsFor(productId, '');
+
+        setLine(i, { product_id: productId, category_id: kit ? String(kit.category_id ?? '') : d.items[i].category_id, ...(optionList.length === 1 ? lineFromOption(String(optionList[0].id)) : { product_option_id: '', unit_price: '' }) });
     };
 
     const setLine = (i: number, patch: Partial<Line>) => form.setData('items', d.items.map((l, j) => (j === i ? { ...l, ...patch } : l)));
@@ -90,11 +138,28 @@ export default function SaleCreate({ options }: { options: OptionRef[] }) {
                     <div className="grid gap-4 lg:grid-cols-2">
                         <Panel title="Customer">
                             <div className="grid gap-3 sm:grid-cols-2">
+                                <Field label="Saved customer" className="sm:col-span-2">
+                                    <SearchSelect
+                                        clearable
+                                        value={savedId}
+                                        placeholder="Search saved customers by name or phone..."
+                                        options={savedCustomers.map((c) => ({ value: String(c.id), label: c.name, hint: c.phone }))}
+                                        onChange={(id) => {
+                                            if (id) {
+                                                pickCustomer(id);
+                                            } else {
+                                                setSavedId('');
+                                                setCustomer({ phone: '', name: '', address: '', city: '' });
+                                            }
+                                        }}
+                                    />
+                                </Field>
                                 <Field label="Phone" error={errors['customer.phone']} className="relative">
                                     <Input
                                         value={d.customer.phone}
                                         autoComplete="off"
                                         onChange={(e) => {
+                                            setSavedId('');
                                             setCustomer({ phone: e.target.value });
                                             setQuery(e.target.value);
                                         }}
@@ -106,12 +171,7 @@ export default function SaleCreate({ options }: { options: OptionRef[] }) {
                                                     key={c.id}
                                                     type="button"
                                                     className="block w-full px-3 py-2 text-left text-sm hover:bg-accent"
-                                                    onClick={() => {
-                                                        setCustomer({ phone: c.phone, name: c.name, address: c.address ?? '', city: c.city ?? '' });
-                                                        form.setData('delivery_address', [c.address, c.city].filter(Boolean).join(', '));
-                                                        setMatches([]);
-                                                        setQuery('');
-                                                    }}
+                                                    onClick={() => pickCustomer(String(c.id))}
                                                 >
                                                     {c.name} · {c.phone} <span className="text-muted-foreground">{c.city}</span>
                                                 </button>
@@ -120,12 +180,12 @@ export default function SaleCreate({ options }: { options: OptionRef[] }) {
                                     )}
                                 </Field>
                                 <Field label="Name" error={errors['customer.name']}>
-                                    <Input value={d.customer.name} onChange={(e) => { setCustomer({ name: e.target.value }); setQuery(e.target.value); }} />
+                                    <Input value={d.customer.name} onChange={(e) => { setSavedId(''); setCustomer({ name: e.target.value }); setQuery(e.target.value); }} />
                                 </Field>
                                 <Field label="Address"><Input value={d.customer.address} onChange={(e) => setCustomer({ address: e.target.value })} /></Field>
                                 <Field label="City"><Input value={d.customer.city} onChange={(e) => setCustomer({ city: e.target.value })} /></Field>
                             </div>
-                            <p className="mt-2 text-xs text-muted-foreground">Type a phone or name to find a saved customer. A new phone creates a customer when the sale is saved.</p>
+                            <p className="mt-2 text-xs text-muted-foreground">Pick a saved customer, or type a new phone and name: a new customer is created automatically when the sale is saved.</p>
                         </Panel>
 
                         <Panel title="Sale">
@@ -160,19 +220,55 @@ export default function SaleCreate({ options }: { options: OptionRef[] }) {
                     <Panel title="Items">
                         {errors.items && <p className="mb-2 text-sm text-red-600">{errors.items}</p>}
                         <Table>
-                            <thead><tr><th>Product option</th><th className="w-28">Qty</th><th className="w-36">Unit price</th><th className="text-right">Line total</th><th /></tr></thead>
+                            <thead><tr><th className="w-36">Code</th><th className="w-44">Category</th><th className="w-52">Kit</th><th className="w-56">Option</th><th className="w-24 text-right">Qty</th><th className="w-32 text-right">Unit price</th><th className="text-right">Line total</th><th /></tr></thead>
                             <tbody>
-                                {d.items.map((l, i) => (
+                                {d.items.map((l, i) => l.custom ? (
+                                    <tr key={i}>
+                                        <td colSpan={4}>
+                                            <CustomKit line={l} index={i} components={components} materials={materials} onChange={(patch) => setLine(i, patch)} errors={errors} />
+                                        </td>
+                                        <td><NumberInput value={l.qty} onChange={(e) => setLine(i, { qty: e.target.value })} /></td>
+                                        <td><NumberInput value={l.unit_price} onChange={(e) => setLine(i, { unit_price: e.target.value })} aria-invalid={!!errors[`items.${i}.unit_price`]} /></td>
+                                        <td className="text-right tabular-nums">{rs((Number(l.qty) || 0) * (Number(l.unit_price) || 0))}</td>
+                                        <td className="text-right"><Button type="button" variant="ghost" size="icon" onClick={() => form.setData('items', d.items.filter((_, j) => j !== i))}><Trash2 className="size-4" /></Button></td>
+                                    </tr>
+                                ) : (
                                     <tr key={i}>
                                         <td>
-                                            <NativeSelect
+                                            <SearchSelect
                                                 value={l.product_option_id}
-                                                aria-invalid={!!errors[`items.${i}.product_option_id`]}
-                                                onChange={(e) => setLine(i, { product_option_id: e.target.value, unit_price: priceFor(e.target.value, d.sale_type) })}
-                                            >
-                                                <option value="">Choose by code or name...</option>
-                                                {options.map((o) => <option key={o.id} value={o.id}>{o.code} · {o.name}</option>)}
-                                            </NativeSelect>
+                                                placeholder="Code..."
+                                                invalid={!!errors[`items.${i}.product_option_id`]}
+                                                options={options.map((o) => ({ value: String(o.id), label: o.code, hint: o.name }))}
+                                                onChange={(id) => setLine(i, lineFromOption(id))}
+                                            />
+                                        </td>
+                                        <td>
+                                            <SearchSelect
+                                                clearable
+                                                value={l.category_id}
+                                                placeholder="Category..."
+                                                options={categories.map((c) => ({ value: String(c.id), label: c.name }))}
+                                                onChange={(id) => pickCategory(i, id)}
+                                            />
+                                        </td>
+                                        <td>
+                                            <SearchSelect
+                                                clearable
+                                                value={l.product_id}
+                                                placeholder="Kit..."
+                                                options={kitsFor(l.category_id).map((k) => ({ value: String(k.id), label: k.name }))}
+                                                onChange={(id) => pickKit(i, id)}
+                                            />
+                                        </td>
+                                        <td>
+                                            <SearchSelect
+                                                value={l.product_option_id}
+                                                placeholder="Option..."
+                                                invalid={!!errors[`items.${i}.product_option_id`]}
+                                                options={optionsFor(l.product_id, l.category_id).map((o) => ({ value: String(o.id), label: o.name, hint: o.code }))}
+                                                onChange={(id) => setLine(i, lineFromOption(id))}
+                                            />
                                         </td>
                                         <td><NumberInput value={l.qty} onChange={(e) => setLine(i, { qty: e.target.value })} aria-invalid={!!errors[`items.${i}.qty`]} /></td>
                                         <td><NumberInput value={l.unit_price} onChange={(e) => setLine(i, { unit_price: e.target.value })} aria-invalid={!!errors[`items.${i}.unit_price`]} /></td>
@@ -186,7 +282,10 @@ export default function SaleCreate({ options }: { options: OptionRef[] }) {
                                 ))}
                             </tbody>
                         </Table>
-                        <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => form.setData('items', [...d.items, newLine()])}>Add item</Button>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                            <Button type="button" variant="outline" size="sm" onClick={() => form.setData('items', [...d.items, newLine()])}>Add item</Button>
+                            <Button type="button" variant="outline" size="sm" onClick={() => form.setData('items', [...d.items, newLine(true)])}>Add custom kit</Button>
+                        </div>
                     </Panel>
 
                     <div className="grid gap-4 lg:grid-cols-2">
@@ -223,6 +322,36 @@ export default function SaleCreate({ options }: { options: OptionRef[] }) {
                 </form>
             </Page>
         </>
+    );
+}
+
+function CustomKit({ line, index, components, materials, onChange, errors }: { line: Line; index: number; components: PartRef[]; materials: PartRef[]; onChange: (patch: Partial<Line>) => void; errors: Record<string, string> }) {
+    const setPart = (n: number, patch: Partial<Part>) => onChange({ parts: line.parts.map((p, j) => (j === n ? { ...p, ...patch } : p)) });
+
+    return (
+        <div className="min-w-72 space-y-2 py-1">
+            <Input value={line.name} placeholder="Custom kit name (optional)" onChange={(e) => onChange({ name: e.target.value })} />
+            {errors[`items.${index}.parts`] && <p className="text-sm text-red-600">{errors[`items.${index}.parts`]}</p>}
+            {line.parts.map((p, n) => (
+                <div key={n} className="grid grid-cols-[7rem_1fr_5rem_auto] items-center gap-2">
+                    <NativeSelect value={p.type} onChange={(e) => setPart(n, { type: e.target.value as Part['type'], id: '' })}>
+                        <option value="component">Component</option>
+                        <option value="material">Material</option>
+                    </NativeSelect>
+                    <SearchSelect
+                        value={p.id}
+                        placeholder={p.type === 'component' ? 'Search components...' : 'Search materials...'}
+                        invalid={!!errors[`items.${index}.parts.${n}.id`]}
+                        options={(p.type === 'component' ? components : materials).map((x) => ({ value: String(x.id), label: x.name, hint: x.code ?? x.unit }))}
+                        onChange={(id) => setPart(n, { id })}
+                    />
+                    <NumberInput value={p.qty} aria-label="Quantity" onChange={(e) => setPart(n, { qty: e.target.value })} />
+                    <Button type="button" variant="ghost" size="icon" disabled={line.parts.length === 1} onClick={() => onChange({ parts: line.parts.filter((_, j) => j !== n) })}><Trash2 className="size-4" /></Button>
+                </div>
+            ))}
+            <Button type="button" variant="outline" size="sm" onClick={() => onChange({ parts: [...line.parts, { type: 'component', id: '', qty: '1' }] })}>Add part</Button>
+            <p className="text-xs text-muted-foreground">Quantities are per kit. The chosen contents are saved with this sale and unaffected by later recipe changes.</p>
+        </div>
     );
 }
 

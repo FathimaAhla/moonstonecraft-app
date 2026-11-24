@@ -16,6 +16,7 @@ class StageLine extends Model
     {
         return [
             'qty' => 'float',
+            'wastage_pct' => 'float',
         ];
     }
 

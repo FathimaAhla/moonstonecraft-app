@@ -8,6 +8,7 @@ use App\Models\Material;
 use App\Models\OptionPart;
 use App\Models\ProductOption;
 use App\Models\Setting;
+use App\Models\StageLine;
 
 /**
  * Computes component and option costs from current material prices. Nothing is cached.
@@ -27,7 +28,15 @@ class Costing
     {
         $stage->loadMissing('lines.material');
 
-        return (float) $stage->lines->sum(fn ($line) => $line->qty * ($line->material?->unit_cost ?? 0));
+        return (float) $stage->lines->sum(fn ($line) => $this->lineQty($line) * ($line->material?->unit_cost ?? 0));
+    }
+
+    /**
+     * Recipe quantity of a line including its own wastage.
+     */
+    public function lineQty(StageLine $line): float
+    {
+        return $line->qty * (1 + $line->wastage_pct / 100);
     }
 
     public function componentUnitCost(Component $component): float
@@ -109,8 +118,8 @@ class Costing
 
         foreach ($component->stages as $stage) {
             foreach ($stage->lines as $line) {
-                if ($line->material && ! $line->material->isOverhead()) {
-                    $usage[$line->material_id] = ($usage[$line->material_id] ?? 0) + $line->qty * $factor;
+                if ($line->material && $line->material->deductsStock()) {
+                    $usage[$line->material_id] = ($usage[$line->material_id] ?? 0) + $this->lineQty($line) * $factor;
                 }
             }
         }
@@ -129,12 +138,59 @@ class Costing
         foreach ($option->parts as $part) {
             if ($part->component_id) {
                 $usage = self::mergeUsage($usage, $this->componentUsage($part->component, $part->qty * $qty));
-            } elseif ($part->material && ! $part->material->isOverhead()) {
+            } elseif ($part->material && $part->material->deductsStock()) {
                 $usage = self::mergeUsage($usage, [$part->material_id => $part->qty * $qty]);
             }
         }
 
         return $usage;
+    }
+
+    /**
+     * Snapshot of what $qty units of the given parts contain and cost right now.
+     * Parts are [component_id|material_id => id, qty]. Safe to store: it holds names, units and prices.
+     *
+     * @param  iterable<array{component_id?: int|null, material_id?: int|null, qty: float|int|string}>  $parts
+     * @return array{lines: list<array<string, mixed>>, cost: float}
+     */
+    public function snapshot(iterable $parts, float $multiplier = 1): array
+    {
+        $lines = [];
+        $cost = 0.0;
+
+        foreach ($parts as $part) {
+            $qty = (float) $part['qty'] * $multiplier;
+
+            if (! empty($part['component_id'])) {
+                $component = Component::query()->with('stages.lines.material')->findOrFail($part['component_id']);
+                $unit = $this->componentUnitCost($component);
+                $factor = $component->yield_qty > 0 ? $qty / $component->yield_qty * (1 + $component->wastage_pct / 100) : 0;
+                $recipe = [];
+
+                foreach ($component->stages as $stage) {
+                    foreach ($stage->lines as $line) {
+                        $recipe[] = [
+                            'material_id' => $line->material_id,
+                            'name' => $line->material?->name,
+                            'unit' => $line->material?->unit,
+                            'qty' => round($this->lineQty($line) * $factor, 4),
+                            'wastage_pct' => $line->wastage_pct,
+                            'unit_cost' => (float) ($line->material?->unit_cost ?? 0),
+                            'tracked' => (bool) $line->material?->deductsStock(),
+                        ];
+                    }
+                }
+
+                $lines[] = ['kind' => 'component', 'id' => $component->id, 'code' => $component->code, 'name' => $component->name, 'unit' => 'pc', 'qty' => round($qty, 4), 'unit_cost' => round($unit, 4), 'cost' => round($qty * $unit, 4), 'recipe' => $recipe];
+                $cost += $qty * $unit;
+            } else {
+                $material = Material::query()->findOrFail($part['material_id']);
+                $lines[] = ['kind' => 'material', 'id' => $material->id, 'code' => null, 'name' => $material->name, 'unit' => $material->unit, 'qty' => round($qty, 4), 'unit_cost' => $material->unit_cost, 'cost' => round($qty * $material->unit_cost, 4), 'tracked' => $material->deductsStock()];
+                $cost += $qty * $material->unit_cost;
+            }
+        }
+
+        return ['lines' => $lines, 'cost' => round($cost, 4)];
     }
 
     /**
@@ -165,7 +221,7 @@ class Costing
         foreach ($option->parts as $part) {
             if ($part->component) {
                 $bag = StockService::mergeBags($bag, $this->componentStockUsage($part->component, $part->qty * $qty));
-            } elseif ($part->material && ! $part->material->isOverhead()) {
+            } elseif ($part->material && $part->material->deductsStock()) {
                 $bag = StockService::mergeBags($bag, [$part->material_id => $part->qty * $qty]);
             }
         }

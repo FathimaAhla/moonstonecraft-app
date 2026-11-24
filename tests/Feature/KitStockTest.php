@@ -40,13 +40,12 @@ test('adding made figures raises figure stock without touching materials', funct
         ->and(StockMovement::query()->where('component_id', $this->car->id)->sole()->reason)->toBe('made');
 });
 
-test('making paint pots uses paint and empty pots from the recipe', function () {
+test('making paint pots records stock but does not deduct materials until packing', function () {
     app(KitStockService::class)->make($this->pot, 85);
 
     expect($this->pot->fresh()->stock)->toEqual(85.0)
-        ->and($this->paint->fresh()->stock)->toEqual(350.0)
-        ->and($this->emptyPot->fresh()->stock)->toEqual(15.0)
-        ->and(app(KitStockService::class)->canMakeComponent($this->pot->fresh()))->toBe(['can_make' => 15, 'limit' => 'Empty pot']);
+        ->and($this->paint->fresh()->stock)->toEqual(1200.0)
+        ->and($this->emptyPot->fresh()->stock)->toEqual(100.0);
 });
 
 test('a part that does not keep stock cannot be made', function () {
@@ -59,7 +58,7 @@ test('a part that does not keep stock cannot be made', function () {
 
 test('packing kits moves parts into ready kit stock and unpacking reverses it', function () {
     $kits = app(KitStockService::class);
-    $kits->make($this->car, 50, useMaterials: false);
+    $kits->make($this->car, 50);
     $kits->make($this->pot, 85);
 
     $this->actingAs($this->user)->post(route('stock.pack', $this->kit), ['qty' => 10, 'packed_on' => '2026-11-10'])->assertRedirect();
@@ -67,6 +66,7 @@ test('packing kits moves parts into ready kit stock and unpacking reverses it', 
     expect($this->kit->fresh()->stock)->toEqual(10.0)
         ->and($this->car->fresh()->stock)->toEqual(40.0)
         ->and($this->pot->fresh()->stock)->toEqual(75.0)
+        ->and($this->paint->fresh()->stock)->toEqual(1100.0)
         ->and($this->brush->fresh()->stock)->toEqual(190.0);
 
     $this->actingAs($this->user)->post(route('stock.unpack', $this->kit), ['qty' => 4, 'packed_on' => '2026-11-11'])->assertRedirect();
@@ -85,7 +85,7 @@ test('unpacking more kits than are packed is refused', function () {
 
 test('can make reports the part that runs out first', function () {
     $kits = app(KitStockService::class);
-    $kits->make($this->car, 6, useMaterials: false);
+    $kits->make($this->car, 6);
     $kits->make($this->pot, 85);
 
     expect($kits->canMakeOption($this->kit->fresh()))->toBe(['can_make' => 6, 'limit' => 'VEH-CAR Car']);
@@ -93,7 +93,7 @@ test('can make reports the part that runs out first', function () {
 
 test('a sale uses ready kits first, then packs the rest from parts, and deleting restores both', function () {
     $kits = app(KitStockService::class);
-    $kits->make($this->car, 20, useMaterials: false);
+    $kits->make($this->car, 20);
     $kits->make($this->pot, 20);
     $kits->pack($this->kit, 2);
 
@@ -115,7 +115,7 @@ test('a sale uses ready kits first, then packs the rest from parts, and deleting
 });
 
 test('damage on a part is recorded with its reason', function () {
-    app(KitStockService::class)->make($this->car, 10, useMaterials: false);
+    app(KitStockService::class)->make($this->car, 10);
 
     $this->actingAs($this->user)->post(route('stock.adjust-component', $this->car), ['qty' => -2, 'reason' => 'damaged', 'note' => 'cracked'])->assertRedirect();
 

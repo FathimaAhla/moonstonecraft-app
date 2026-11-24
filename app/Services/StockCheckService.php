@@ -109,7 +109,7 @@ class StockCheckService
         $lines = [];
 
         if (in_array($scope, ['all', 'materials'], true)) {
-            foreach (Material::query()->where('type', 'material')->orderBy('name')->get() as $material) {
+            foreach (Material::query()->where('tracks_stock', true)->orderBy('name')->get() as $material) {
                 $lines[] = ['item_type' => 'material', 'item_id' => $material->id, 'name' => $material->name, 'unit' => $material->unit, 'system_qty' => $material->stock, 'unit_cost' => $material->unit_cost];
             }
         }

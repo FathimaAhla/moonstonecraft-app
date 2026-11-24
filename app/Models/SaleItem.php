@@ -19,6 +19,9 @@ class SaleItem extends Model
             'unit_price' => 'float',
             'unit_cost' => 'float',
             'usage' => 'array',
+            'contents' => 'array',
+            'allocations' => 'array',
+            'is_custom' => 'boolean',
         ];
     }
 

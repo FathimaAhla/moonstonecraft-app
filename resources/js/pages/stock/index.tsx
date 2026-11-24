@@ -13,7 +13,9 @@ type CanMake = { can_make: number | null; limit: string | null };
 type PartRow = { id: number; code: string; name: string; category: string; stock: number; reorder_level: number; unit_cost: number; has_recipe: boolean; from_materials: CanMake };
 type KitRow = { id: number; code: string; name: string; product: string | null; stock: number; reorder_level: number; retail_price: number; unit_cost: number; can_make: CanMake };
 
-export default function StockIndex({ components: parts, options: kits, movements, adjustReasons }: { components: PartRow[]; options: KitRow[]; movements: Movement[]; adjustReasons: string[] }) {
+type PackRow = { id: number; option: string | null; packed_on: string; qty: number; qty_remaining: number; unit_cost: number; is_legacy: boolean; note: string | null; contents: string };
+
+export default function StockIndex({ components: parts, options: kits, movements, adjustReasons, packRecords, legacyQty }: { components: PartRow[]; options: KitRow[]; movements: Movement[]; adjustReasons: string[]; packRecords: PackRow[]; legacyQty: number }) {
     const [action, setAction] = useState<StockAction | null>(null);
     const groups = Object.entries(
         parts.reduce<Record<string, PartRow[]>>((all, p) => ({ ...all, [p.category]: [...(all[p.category] ?? []), p] }), {}),
@@ -88,6 +90,30 @@ export default function StockIndex({ components: parts, options: kits, movements
                         </tbody>
                     </Table>
                     <p className="border-t px-4 py-2 text-xs text-muted-foreground">Can make counts parts in stock as if you make only that option. Parts are shared, so packing one option lowers the others.</p>
+                </Panel>
+
+                <Panel title="Packing records" flush>
+                    {legacyQty > 0 && (
+                        <p className="border-b bg-amber-50 px-4 py-2 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+                            {num(legacyQty, 0)} packed kits have no saved contents (packed before records began, or added by a stock correction). Their original contents are unknown, so unpacking them restores nothing. Re-pack them to get a full record.
+                        </p>
+                    )}
+                    <Table>
+                        <thead><tr><th>Date</th><th>Option</th><th className="text-right">Packed</th><th className="text-right">Left</th><th className="text-right">Unit cost</th><th>Saved contents</th></tr></thead>
+                        <tbody>
+                            {packRecords.length === 0 && <EmptyRow colSpan={6}>Nothing packed yet.</EmptyRow>}
+                            {packRecords.map((r) => (
+                                <tr key={r.id}>
+                                    <td>{r.packed_on}</td>
+                                    <td className="font-mono">{r.option}</td>
+                                    <td className="text-right tabular-nums">{num(r.qty, 0)}</td>
+                                    <td className="text-right tabular-nums">{num(r.qty_remaining, 0)}</td>
+                                    <td className="text-right tabular-nums">{r.is_legacy ? '-' : rs(r.unit_cost)}</td>
+                                    <td className="max-w-md truncate text-muted-foreground" title={r.contents}>{r.is_legacy ? 'Unknown (no snapshot)' : r.contents}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </Table>
                 </Panel>
 
                 <Panel title="Latest part and kit movements" flush>

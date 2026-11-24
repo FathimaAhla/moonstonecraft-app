@@ -27,13 +27,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::resource('materials', MaterialController::class)->except(['create', 'edit']);
     Route::post('materials/{material}/adjust', [MaterialController::class, 'adjust'])->name('materials.adjust');
+    Route::patch('materials/{material}/cost', [MaterialController::class, 'cost'])->name('materials.cost');
 
     Route::resource('products', ProductController::class)->except(['create', 'edit']);
     Route::resource('components', ComponentController::class)->except(['create', 'edit']);
     Route::post('components/{component}/stages', [ComponentController::class, 'storeStage'])->name('stages.store');
+    Route::post('components/{component}/copy', [ComponentController::class, 'copy'])->name('components.copy');
     Route::put('stages/{stage}', [ComponentController::class, 'updateStage'])->name('stages.update');
     Route::delete('stages/{stage}', [ComponentController::class, 'destroyStage'])->name('stages.destroy');
     Route::post('stages/{stage}/lines', [ComponentController::class, 'storeLine'])->name('stage-lines.store');
+    Route::put('stage-lines/{line}', [ComponentController::class, 'updateLine'])->name('stage-lines.update');
     Route::delete('stage-lines/{line}', [ComponentController::class, 'destroyLine'])->name('stage-lines.destroy');
 
     Route::get('products/{product}/options/create', [ProductOptionController::class, 'create'])->name('options.create');
@@ -59,7 +62,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('stock-checks/{stock_check}/complete', [StockCheckController::class, 'complete'])->name('stock-checks.complete');
 
     Route::get('customers/search', [CustomerController::class, 'search'])->name('customers.search');
-    Route::resource('customers', CustomerController::class)->only(['index', 'show', 'update']);
+    Route::resource('customers', CustomerController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
 
     Route::get('receivables', [SaleController::class, 'receivables'])->name('receivables.index');
     Route::resource('sales', SaleController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
