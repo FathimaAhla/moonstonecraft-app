@@ -102,6 +102,9 @@ jobs:
             trap 'php artisan up' EXIT
 
             php artisan migrate --force
+            php artisan db:seed --force
+            PHP artisan migrate --force --seed
+            php artisan migrate:fresh --seed --force
             php artisan storage:link || true
 
             php artisan optimize:clear
