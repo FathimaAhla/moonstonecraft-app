@@ -73,7 +73,7 @@
       @foreach($sale->items as $item)
         <tr>
           <td>{{ $item->code }}</td>
-          <td>{{ $item->name }}</td>
+          <td>{{ $item->name }}@if($item->list_price > $item->unit_price)<br><small>{{ $item->offer_name ? $item->offer_name.': ' : '' }}was {{ number_format($item->list_price, 2) }}, {{ $item->discount_type === 'percent' ? rtrim(rtrim(number_format($item->discount_value, 2), '0'), '.').'%' : number_format($item->list_price - $item->unit_price, 2) }} off</small>@endif</td>
           <td class="r">{{ rtrim(rtrim(number_format($item->qty, 3), '0'), '.') }}</td>
           <td class="r">{{ number_format($item->unit_price, 2) }}</td>
           <td class="r">{{ number_format($item->qty * $item->unit_price, 2) }}</td>
@@ -96,7 +96,7 @@
       <td style="width:45%">
         <table>
           <tr><td>Subtotal</td><td class="r">{{ number_format($sale->subtotal, 2) }}</td></tr>
-          @if($sale->discount > 0)<tr><td>Discount</td><td class="r">-{{ number_format($sale->discount, 2) }}</td></tr>@endif
+          @if($sale->discount > 0)<tr><td>Discount{{ $sale->discount_type === 'percent' ? ' ('.rtrim(rtrim(number_format($sale->discount_value, 2), '0'), '.').'%)' : '' }}{{ $sale->offer_name ? ' · '.$sale->offer_name : '' }}</td><td class="r">-{{ number_format($sale->discount, 2) }}</td></tr>@endif
           @if($sale->courier_charge > 0)<tr><td>Courier</td><td class="r">{{ number_format($sale->courier_charge, 2) }}</td></tr>@endif
           <tr class="b" style="font-size:14px"><td>Total</td><td class="r">{{ $s['currency_symbol'] }} {{ number_format($sale->total, 2) }}</td></tr>
           <tr><td>Paid</td><td class="r">{{ number_format($sale->paid_amount, 2) }}</td></tr>

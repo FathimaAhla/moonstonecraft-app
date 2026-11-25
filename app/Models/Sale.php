@@ -21,6 +21,7 @@ class Sale extends Model
             'printed_at' => 'datetime',
             'subtotal' => 'float',
             'discount' => 'float',
+            'discount_value' => 'float',
             'courier_charge' => 'float',
             'total' => 'float',
             'paid_amount' => 'float',

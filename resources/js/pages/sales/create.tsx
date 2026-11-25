@@ -13,9 +13,25 @@ type Named = { id: number; name: string };
 type Kit = Named & { category_id: number | null };
 type Customer = { id: number; name: string; phone: string; address: string | null; city: string | null; type: string };
 type Part = { type: 'component' | 'material'; id: string; qty: string };
-type Line = { custom: boolean; name: string; parts: Part[]; category_id: string; product_id: string; product_option_id: string; qty: string; unit_price: string };
+type DiscountType = 'amount' | 'percent';
+type Line = {
+    custom: boolean; name: string; parts: Part[]; category_id: string; product_id: string; product_option_id: string; qty: string; unit_price: string;
+    discount_type: DiscountType; discount_value: string; offer_name: string;
+};
 
-const newLine = (custom = false): Line => ({ custom, name: '', parts: [{ type: 'component', id: '', qty: '1' }], category_id: '', product_id: '', product_option_id: '', qty: '1', unit_price: '' });
+const newLine = (custom = false): Line => ({
+    custom, name: '', parts: [{ type: 'component', id: '', qty: '1' }], category_id: '', product_id: '', product_option_id: '', qty: '1', unit_price: '',
+    discount_type: 'amount', discount_value: '', offer_name: '',
+});
+
+/** Rs taken off a price: a percentage of it or a fixed amount, never more than the price. Matches SaleService::discountAmount. */
+const discountOf = (type: DiscountType, value: string, price: number) => {
+    const amount = type === 'percent' ? (price * (Number(value) || 0)) / 100 : Number(value) || 0;
+
+    return Math.round(Math.min(Math.max(amount, 0), price) * 100) / 100;
+};
+
+const offerPrice = (l: Line) => (Number(l.unit_price) || 0) - discountOf(l.discount_type, l.discount_value, Number(l.unit_price) || 0);
 
 type PartRef = { id: number; name: string; code?: string; unit?: string };
 
@@ -27,7 +43,9 @@ export default function SaleCreate({ customers: savedCustomers, categories, kits
         delivery_method: 'pickup',
         delivery_address: '',
         customer: { phone: '', name: '', address: '', city: '' },
+        discount_type: 'amount' as DiscountType,
         discount: '0',
+        offer_name: '',
         courier_charge: '0',
         amount_paid: '',
         due_date: '',
@@ -119,9 +137,10 @@ export default function SaleCreate({ customers: savedCustomers, categories, kits
         }));
     };
 
-    const subtotal = d.items.reduce((s, l) => s + (Number(l.qty) || 0) * (Number(l.unit_price) || 0), 0);
+    const subtotal = d.items.reduce((s, l) => s + (Number(l.qty) || 0) * offerPrice(l), 0);
     const courier = d.delivery_method === 'courier' ? Number(d.courier_charge) || 0 : 0;
-    const total = subtotal - (Number(d.discount) || 0) + courier;
+    const billDiscount = discountOf(d.discount_type, d.discount, subtotal);
+    const total = subtotal - billDiscount + courier;
 
     return (
         <>
@@ -132,6 +151,7 @@ export default function SaleCreate({ customers: savedCustomers, categories, kits
                     className="space-y-4"
                     onSubmit={(e) => {
                         e.preventDefault();
+                        form.transform((data) => ({ ...data, items: data.items.map((l) => (l.custom ? l : { ...l, parts: [] })) }));
                         form.post(sales.store.url());
                     }}
                 >
@@ -220,16 +240,17 @@ export default function SaleCreate({ customers: savedCustomers, categories, kits
                     <Panel title="Items">
                         {errors.items && <p className="mb-2 text-sm text-red-600">{errors.items}</p>}
                         <Table>
-                            <thead><tr><th className="w-36">Code</th><th className="w-44">Category</th><th className="w-52">Kit</th><th className="w-56">Option</th><th className="w-24 text-right">Qty</th><th className="w-32 text-right">Unit price</th><th className="text-right">Line total</th><th /></tr></thead>
+                            <thead><tr><th className="w-36">Code</th><th className="w-44">Category</th><th className="w-52">Kit</th><th className="w-56">Option</th><th className="w-24 text-right">Qty</th><th className="w-32 text-right">Normal price</th><th className="w-52">Offer discount</th><th className="text-right">Line total</th><th /></tr></thead>
                             <tbody>
                                 {d.items.map((l, i) => l.custom ? (
                                     <tr key={i}>
                                         <td colSpan={4}>
                                             <CustomKit line={l} index={i} components={components} materials={materials} onChange={(patch) => setLine(i, patch)} errors={errors} />
                                         </td>
-                                        <td><NumberInput value={l.qty} onChange={(e) => setLine(i, { qty: e.target.value })} /></td>
-                                        <td><NumberInput value={l.unit_price} onChange={(e) => setLine(i, { unit_price: e.target.value })} aria-invalid={!!errors[`items.${i}.unit_price`]} /></td>
-                                        <td className="text-right tabular-nums">{rs((Number(l.qty) || 0) * (Number(l.unit_price) || 0))}</td>
+                                        <td><NumberInput className="min-w-20" value={l.qty} onChange={(e) => setLine(i, { qty: e.target.value })} /></td>
+                                        <td><NumberInput className="min-w-28" value={l.unit_price} onChange={(e) => setLine(i, { unit_price: e.target.value })} aria-invalid={!!errors[`items.${i}.unit_price`]} /></td>
+                                        <td><LineDiscount line={l} error={errors[`items.${i}.discount_value`]} onChange={(patch) => setLine(i, patch)} /></td>
+                                        <td className="text-right tabular-nums"><LineTotal line={l} /></td>
                                         <td className="text-right"><Button type="button" variant="ghost" size="icon" onClick={() => form.setData('items', d.items.filter((_, j) => j !== i))}><Trash2 className="size-4" /></Button></td>
                                     </tr>
                                 ) : (
@@ -270,9 +291,10 @@ export default function SaleCreate({ customers: savedCustomers, categories, kits
                                                 onChange={(id) => setLine(i, lineFromOption(id))}
                                             />
                                         </td>
-                                        <td><NumberInput value={l.qty} onChange={(e) => setLine(i, { qty: e.target.value })} aria-invalid={!!errors[`items.${i}.qty`]} /></td>
-                                        <td><NumberInput value={l.unit_price} onChange={(e) => setLine(i, { unit_price: e.target.value })} aria-invalid={!!errors[`items.${i}.unit_price`]} /></td>
-                                        <td className="text-right tabular-nums">{rs((Number(l.qty) || 0) * (Number(l.unit_price) || 0))}</td>
+                                        <td><NumberInput className="min-w-20" value={l.qty} onChange={(e) => setLine(i, { qty: e.target.value })} aria-invalid={!!errors[`items.${i}.qty`]} /></td>
+                                        <td><NumberInput className="min-w-28" value={l.unit_price} onChange={(e) => setLine(i, { unit_price: e.target.value })} aria-invalid={!!errors[`items.${i}.unit_price`]} /></td>
+                                        <td><LineDiscount line={l} error={errors[`items.${i}.discount_value`]} onChange={(patch) => setLine(i, patch)} /></td>
+                                        <td className="text-right tabular-nums"><LineTotal line={l} /></td>
                                         <td className="text-right">
                                             {d.items.length > 1 && (
                                                 <Button type="button" variant="ghost" size="icon" onClick={() => form.setData('items', d.items.filter((_, j) => j !== i))}><Trash2 className="size-4" /></Button>
@@ -291,7 +313,16 @@ export default function SaleCreate({ customers: savedCustomers, categories, kits
                     <div className="grid gap-4 lg:grid-cols-2">
                         <Panel title="Payment">
                             <div className="grid gap-3 sm:grid-cols-2">
-                                <Field label="Discount" error={errors.discount}><NumberInput value={d.discount} onChange={(e) => form.setData('discount', e.target.value)} /></Field>
+                                <Field label="Bill discount" error={errors.discount}>
+                                    <div className="flex gap-2">
+                                        <NativeSelect className="w-20 shrink-0" aria-label="Bill discount type" value={d.discount_type} onChange={(e) => form.setData('discount_type', e.target.value as DiscountType)}>
+                                            <option value="amount">Rs</option>
+                                            <option value="percent">%</option>
+                                        </NativeSelect>
+                                        <NumberInput value={d.discount} onChange={(e) => form.setData('discount', e.target.value)} />
+                                    </div>
+                                </Field>
+                                <Field label="Bill offer name" error={errors.offer_name}><Input value={d.offer_name} placeholder="e.g. Christmas offer" onChange={(e) => form.setData('offer_name', e.target.value)} /></Field>
                                 {d.delivery_method === 'courier' && (
                                     <Field label="Courier charge to customer" error={errors.courier_charge}><NumberInput value={d.courier_charge} onChange={(e) => form.setData('courier_charge', e.target.value)} /></Field>
                                 )}
@@ -310,7 +341,7 @@ export default function SaleCreate({ customers: savedCustomers, categories, kits
                             <Table>
                                 <tbody>
                                     <tr><td>Subtotal</td><td className="text-right tabular-nums">{rs(subtotal)}</td></tr>
-                                    <tr><td>Discount</td><td className="text-right tabular-nums">-{rs(Number(d.discount) || 0)}</td></tr>
+                                    <tr><td>Discount{d.discount_type === 'percent' && Number(d.discount) > 0 ? ` (${d.discount}%)` : ''}{d.offer_name ? ` · ${d.offer_name}` : ''}</td><td className="text-right tabular-nums">-{rs(billDiscount)}</td></tr>
                                     {d.delivery_method === 'courier' && <tr><td>Courier</td><td className="text-right tabular-nums">{rs(courier)}</td></tr>}
                                     <tr className="text-lg font-semibold"><td>Total</td><td className="text-right tabular-nums">{rs(total)}</td></tr>
                                 </tbody>
@@ -321,6 +352,34 @@ export default function SaleCreate({ customers: savedCustomers, categories, kits
                     </div>
                 </form>
             </Page>
+        </>
+    );
+}
+
+function LineDiscount({ line, error, onChange }: { line: Line; error?: string; onChange: (patch: Partial<Line>) => void }) {
+    return (
+        <div className="min-w-48 space-y-1">
+            <div className="flex gap-1">
+                <NativeSelect className="w-16 shrink-0" aria-label="Discount type" value={line.discount_type} onChange={(e) => onChange({ discount_type: e.target.value as DiscountType })}>
+                    <option value="amount">Rs</option>
+                    <option value="percent">%</option>
+                </NativeSelect>
+                <NumberInput value={line.discount_value} placeholder="0" aria-label="Discount per unit" aria-invalid={!!error} onChange={(e) => onChange({ discount_value: e.target.value })} />
+            </div>
+            <Input value={line.offer_name} placeholder="Offer name (optional)" aria-label="Offer name" onChange={(e) => onChange({ offer_name: e.target.value })} />
+            {error && <p className="text-xs text-red-600">{error}</p>}
+        </div>
+    );
+}
+
+function LineTotal({ line }: { line: Line }) {
+    const price = Number(line.unit_price) || 0;
+    const offer = offerPrice(line);
+
+    return (
+        <>
+            {rs((Number(line.qty) || 0) * offer)}
+            {offer < price && <div className="text-xs text-muted-foreground"><s>{rs(price)}</s> → {rs(offer)} each</div>}
         </>
     );
 }
