@@ -10,14 +10,20 @@ import * as salePayments from '@/routes/sale-payments';
 import * as sales from '@/routes/sales';
 
 type Content = { kind: string; name: string; qty: number; unit: string };
-type Item = { id: number; code: string; name: string; qty: number; unit_price: number; is_custom?: boolean; contents?: { packed_qty: number; unpacked_qty: number; lines: Content[] } | null };
+type Item = { id: number; code: string; name: string; qty: number; unit_price: number; list_price: number; discount_type: 'amount' | 'percent' | null; discount_value: number; offer_name: string | null; is_custom?: boolean; contents?: { packed_qty: number; unpacked_qty: number; lines: Content[] } | null };
 type Payment = { id: number; paid_on: string; amount: number; cod_fee: number; method: string; reference: string | null };
 type Sale = {
     id: number; invoice_no: string; sold_on: string; sale_type: string; payment_method: string; delivery_method: string; delivery_address: string | null;
-    subtotal: number; discount: number; courier_charge: number; total: number; paid_amount: number; balance: number; payment_status: string;
+    subtotal: number; discount: number; discount_type: 'amount' | 'percent'; discount_value: number; offer_name: string | null; courier_charge: number; total: number; paid_amount: number; balance: number; payment_status: string;
     due_date: string | null; notes: string | null; print_count: number;
     customer: { id: number; name: string; phone: string; address: string | null } | null; items: Item[]; payments: Payment[];
 };
+
+function offerLabel(type: 'amount' | 'percent' | null, value: number, name: string | null) {
+    const parts = [type === 'percent' ? `${num(value, 2)}% off` : `Rs ${num(value, 2)} off`, name].filter(Boolean);
+
+    return <span className="text-muted-foreground">({parts.join(' · ')})</span>;
+}
 
 function openWindow(url: string, small = false) {
     window.open(url, '_blank', small ? 'width=420,height=700' : undefined);
@@ -64,11 +70,14 @@ export default function SaleShow({ sale, profit, publicLink }: { sale: Sale; pro
                                                 </details>
                                             )}
                                         </td>
-                                        <td className="text-right">{num(i.qty, 3)}</td><td className="text-right tabular-nums">{rs(i.unit_price)}</td><td className="text-right tabular-nums">{rs(i.qty * i.unit_price)}</td>
+                                        <td className="text-right">{num(i.qty, 3)}</td><td className="text-right tabular-nums">
+                                            {i.list_price > i.unit_price && <div className="text-xs text-muted-foreground"><s>{rs(i.list_price)}</s> {offerLabel(i.discount_type, i.discount_value, i.offer_name)}</div>}
+                                            {rs(i.unit_price)}
+                                        </td><td className="text-right tabular-nums">{rs(i.qty * i.unit_price)}</td>
                                     </tr>
                                 ))}
                                 <tr><td colSpan={4}>Subtotal</td><td className="text-right tabular-nums">{rs(sale.subtotal)}</td></tr>
-                                {sale.discount > 0 && <tr><td colSpan={4}>Discount</td><td className="text-right tabular-nums">-{rs(sale.discount)}</td></tr>}
+                                {sale.discount > 0 && <tr><td colSpan={4}>Discount {offerLabel(sale.discount_type, sale.discount_value, sale.offer_name)}</td><td className="text-right tabular-nums">-{rs(sale.discount)}</td></tr>}
                                 {sale.courier_charge > 0 && <tr><td colSpan={4}>Courier</td><td className="text-right tabular-nums">{rs(sale.courier_charge)}</td></tr>}
                                 <tr className="font-semibold"><td colSpan={4}>Total</td><td className="text-right tabular-nums">{rs(sale.total)}</td></tr>
                             </tbody>

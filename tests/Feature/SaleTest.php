@@ -112,3 +112,46 @@ test('customer search returns saved details', function () {
     $this->actingAs(User::factory()->create())->getJson(route('customers.search', ['q' => '07111']))
         ->assertOk()->assertJsonPath('0.name', 'Kamala');
 });
+
+test('an item offer keeps the normal price, discount type and offer name', function () {
+    $this->actingAs(User::factory()->create())->post(route('sales.store'), saleData([
+        'items' => [['discount_type' => 'percent', 'discount_value' => 10, 'offer_name' => 'Christmas offer']],
+    ]))->assertRedirect();
+
+    $item = Sale::query()->sole()->items()->sole();
+
+    expect($item->list_price)->toEqual(500.0)
+        ->and($item->unit_price)->toEqual(450.0)
+        ->and($item->discount_type)->toBe('percent')
+        ->and($item->discount_value)->toEqual(10.0)
+        ->and($item->offer_name)->toBe('Christmas offer')
+        ->and($item->sale->subtotal)->toEqual(900.0);
+});
+
+test('a bill discount can be a percentage of the offer subtotal', function () {
+    $sale = app(SaleService::class)->record(saleData([
+        'items' => [['discount_type' => 'amount', 'discount_value' => 50]],
+        'discount_type' => 'percent',
+        'discount' => 5,
+        'offer_name' => 'Loyal customer',
+    ]));
+
+    expect($sale->subtotal)->toEqual(900.0)
+        ->and($sale->discount)->toEqual(45.0)
+        ->and($sale->discount_value)->toEqual(5.0)
+        ->and($sale->offer_name)->toBe('Loyal customer')
+        ->and($sale->total)->toEqual(855.0);
+});
+
+test('an item discount cannot be more than its price or 100%', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->post(route('sales.store'), saleData(['items' => [['discount_type' => 'amount', 'discount_value' => 600]]]))
+        ->assertSessionHasErrors('items.0.discount_value');
+    $this->actingAs($user)->post(route('sales.store'), saleData(['items' => [['discount_type' => 'percent', 'discount_value' => 120]]]))
+        ->assertSessionHasErrors('items.0.discount_value');
+    $this->actingAs($user)->post(route('sales.store'), saleData(['discount_type' => 'percent', 'discount' => 120]))
+        ->assertSessionHasErrors('discount');
+
+    expect(Sale::query()->count())->toBe(0);
+});

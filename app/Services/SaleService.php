@@ -33,7 +33,9 @@ class SaleService
                 'payment_method' => $data['payment_method'],
                 'delivery_method' => $data['delivery_method'],
                 'delivery_address' => $data['delivery_address'] ?? $customer?->address,
-                'discount' => (float) ($data['discount'] ?? 0),
+                'discount_type' => $data['discount_type'] ?? 'amount',
+                'discount_value' => (float) ($data['discount'] ?? 0),
+                'offer_name' => $data['offer_name'] ?? null,
                 'courier_charge' => $data['delivery_method'] === 'courier' ? (float) ($data['courier_charge'] ?? 0) : 0,
                 'due_date' => $data['due_date'] ?? null,
                 'notes' => $data['notes'] ?? null,
@@ -45,7 +47,10 @@ class SaleService
 
             foreach ($data['items'] as $line) {
                 $qty = (float) $line['qty'];
-                $unitPrice = (float) $line['unit_price'];
+                $listPrice = (float) $line['unit_price'];
+                $discountType = $line['discount_type'] ?? null;
+                $discountValue = $discountType ? (float) ($line['discount_value'] ?? 0) : 0.0;
+                $unitPrice = round($listPrice - self::discountAmount($discountType, $discountValue, $listPrice), 2);
 
                 if (! empty($line['custom'])) {
                     $built = $this->customItem($line, $qty);
@@ -61,6 +66,10 @@ class SaleService
                     'name' => $option ? $option->product?->name.' - '.$option->name : ($line['name'] ?: 'Custom kit'),
                     'is_custom' => $option === null,
                     'qty' => $qty,
+                    'list_price' => $listPrice,
+                    'discount_type' => $discountValue > 0 ? $discountType : null,
+                    'discount_value' => $discountValue,
+                    'offer_name' => $line['offer_name'] ?? null,
                     'unit_price' => $unitPrice,
                     'unit_cost' => round($built['unit_cost'], 4),
                     'usage' => $built['usage'],
@@ -86,6 +95,7 @@ class SaleService
             }
 
             $sale->subtotal = round($subtotal, 2);
+            $sale->discount = self::discountAmount($sale->discount_type, $sale->discount_value, $sale->subtotal);
             $sale->total = round($subtotal - $sale->discount + $sale->courier_charge, 2);
             $sale->cost_total = round($costTotal, 2);
             $sale->courier_cost = round($courierCost, 2);
@@ -111,6 +121,20 @@ class SaleService
 
             return $sale;
         });
+    }
+
+    /**
+     * The Rs taken off a price: a percentage of it or a fixed amount, never more than the price itself.
+     */
+    public static function discountAmount(?string $type, float $value, float $price): float
+    {
+        $amount = match ($type) {
+            'percent' => $price * $value / 100,
+            'amount' => $value,
+            default => 0.0,
+        };
+
+        return round(min(max($amount, 0), $price), 2);
     }
 
     /**

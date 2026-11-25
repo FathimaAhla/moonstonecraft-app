@@ -16,6 +16,8 @@ class SaleItem extends Model
     {
         return [
             'qty' => 'float',
+            'list_price' => 'float',
+            'discount_value' => 'float',
             'unit_price' => 'float',
             'unit_cost' => 'float',
             'usage' => 'array',
