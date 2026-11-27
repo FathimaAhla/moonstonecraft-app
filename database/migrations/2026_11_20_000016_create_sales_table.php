@@ -6,6 +6,10 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * `discount` is the Rs taken off the whole bill; `discount_type` / `discount_value` say how it was given.
+     * `courier_charge_payer`: customer_on_delivery, bank transfer upfront, or absorbed by the business.
+     */
     public function up(): void
     {
         Schema::create('sales', function (Blueprint $table) {
@@ -18,8 +22,12 @@ return new class extends Migration
             $table->string('delivery_method', 20)->default('pickup');
             $table->text('delivery_address')->nullable();
             $table->decimal('subtotal', 12, 2)->default(0);
+            $table->string('discount_type', 10)->default('amount');
+            $table->decimal('discount_value', 12, 2)->default(0);
             $table->decimal('discount', 12, 2)->default(0);
+            $table->string('offer_name')->nullable();
             $table->decimal('courier_charge', 12, 2)->default(0);
+            $table->string('courier_charge_payer', 20)->default('customer_on_delivery');
             $table->decimal('total', 12, 2)->default(0);
             $table->decimal('paid_amount', 12, 2)->default(0);
             $table->decimal('balance', 12, 2)->default(0);

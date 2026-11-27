@@ -8,20 +8,18 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('stock_movements', function (Blueprint $table) {
+        Schema::create('stage_lines', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('component_stage_id')->constrained()->cascadeOnDelete();
             $table->foreignId('material_id')->constrained()->restrictOnDelete();
-            $table->date('moved_on');
             $table->decimal('qty', 14, 3);
-            $table->string('reason', 20);
-            $table->nullableMorphs('ref');
-            $table->decimal('unit_cost', 14, 4)->default(0);
+            $table->decimal('wastage_pct', 8, 2)->default(0);
             $table->timestamps();
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('stock_movements');
+        Schema::dropIfExists('stage_lines');
     }
 };
