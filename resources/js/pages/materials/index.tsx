@@ -1,8 +1,10 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
+import { KitGroupSelect } from '@/components/kit-group-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { DeleteButton, EditButton, EmptyRow, Field, FormModal, NativeSelect, NumberInput, Page, PageHeader, Panel, Table, num, rs } from '@/components/ops';
 import { cn } from '@/lib/utils';
@@ -16,6 +18,8 @@ export type Material = {
     purchase_conversion: number;
     is_purchasable: boolean;
     tracks_stock: boolean;
+    track_by_container: boolean;
+    kit_group: string | null;
     stock: number;
     unit_cost: number;
     purchase_unit_cost: number;
@@ -32,9 +36,13 @@ export function CostSourceBadge({ material }: { material: Pick<Material, 'cost_s
     );
 }
 
-export function behaviourLabel(m: Pick<Material, 'is_purchasable' | 'tracks_stock'>): string {
+export function behaviourLabel(m: Pick<Material, 'is_purchasable' | 'tracks_stock' | 'track_by_container'>): string {
     if (!m.is_purchasable) {
         return 'Cost only';
+    }
+
+    if (m.track_by_container) {
+        return 'Purchased, open and finish';
     }
 
     return m.tracks_stock ? 'Purchased, stock tracked' : 'Purchased, stock manual';
@@ -45,6 +53,8 @@ type FormData = {
     unit: string;
     is_purchasable: boolean;
     tracks_stock: boolean;
+    track_by_container: boolean;
+    kit_group: string;
     purchase_unit: string;
     purchase_conversion: string;
     cost_source: string;
@@ -55,7 +65,7 @@ type FormData = {
 };
 
 export const emptyMaterial: FormData = {
-    name: '', unit: 'g', is_purchasable: true, tracks_stock: true, purchase_unit: '', purchase_conversion: '1',
+    name: '', unit: 'g', is_purchasable: true, tracks_stock: true, track_by_container: false, kit_group: '', purchase_unit: '', purchase_conversion: '1',
     cost_source: 'purchase', manual_unit_cost: '', opening_unit_cost: '', reorder_level: '', stock: '',
 };
 
@@ -84,6 +94,15 @@ export function MaterialFields({ data, setData, errors, editing }: { data: FormD
                         <option value="manual">Purchasable, stock managed by hand (no automatic deduction)</option>
                         <option value="cost">Cost only: not purchased, no stock (labour, electricity...)</option>
                     </NativeSelect>
+                </Field>
+                {data.tracks_stock && (
+                    <label className="flex items-start gap-2 text-sm sm:col-span-2">
+                        <Checkbox checked={data.track_by_container} onCheckedChange={(v) => setData('track_by_container', v === true)} />
+                        <span>Quantity per kit can't be measured (glue, varnish...). Kits don't deduct it: you mark each bottle opened and finished.</span>
+                    </label>
+                )}
+                <Field label="Kit builder section" error={errors.kit_group} className="sm:col-span-2">
+                    <KitGroupSelect value={data.kit_group} onChange={(v) => setData('kit_group', v)} />
                 </Field>
                 <Field label="Unit used in recipes and stock" error={errors.unit}><Input value={data.unit} onChange={(e) => setData('unit', e.target.value)} placeholder="g, ml, pc, hr" /></Field>
                 {data.is_purchasable && (
@@ -115,7 +134,9 @@ export function MaterialFields({ data, setData, errors, editing }: { data: FormD
     );
 }
 
-export default function Materials({ materials: rows }: { materials: Material[] }) {
+type OpenContainer = { id: number; label: string; size: number; opened_on: string; material: { id: number; name: string; unit: string } };
+
+export default function Materials({ materials: rows, openContainers }: { materials: Material[]; openContainers: OpenContainer[] }) {
     const [open, setOpen] = useState(false);
     const [editing, setEditing] = useState<Material | null>(null);
     const form = useForm<FormData>(emptyMaterial);
@@ -127,7 +148,7 @@ export default function Materials({ materials: rows }: { materials: Material[] }
             m
                 ? {
                       ...emptyMaterial,
-                      name: m.name, unit: m.unit, is_purchasable: m.is_purchasable, tracks_stock: m.tracks_stock,
+                      name: m.name, unit: m.unit, is_purchasable: m.is_purchasable, tracks_stock: m.tracks_stock, track_by_container: m.track_by_container, kit_group: m.kit_group ?? '',
                       purchase_unit: m.purchase_unit ?? '', purchase_conversion: String(m.purchase_conversion),
                       cost_source: m.cost_source, manual_unit_cost: m.manual_unit_cost === null ? '' : String(m.manual_unit_cost), reorder_level: String(m.reorder_level),
                   }
@@ -153,6 +174,23 @@ export default function Materials({ materials: rows }: { materials: Material[] }
                 <PageHeader title="Materials and costs" description="Each item is purchasable or cost-only, stock-tracked or managed by hand, and costed from purchases or a manual price. The active cost source is shown on every row.">
                     <Button onClick={() => openModal(null)}><Plus /> New item</Button>
                 </PageHeader>
+                {openContainers.length > 0 && (
+                    <Panel title="In use now" flush>
+                        <Table>
+                            <thead><tr><th>Item</th><th>Container</th><th>Opened</th><th /></tr></thead>
+                            <tbody>
+                                {openContainers.map((c) => (
+                                    <tr key={c.id}>
+                                        <td className="font-medium">{c.material.name}</td>
+                                        <td>{c.label} ({num(c.size, 3)} {c.material.unit})</td>
+                                        <td>{c.opened_on}</td>
+                                        <td className="text-right"><Link href={materials.show(c.material.id)} className="text-primary hover:underline">Mark finished</Link></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </Table>
+                    </Panel>
+                )}
                 <Panel flush>
                     <Table>
                         <thead><tr><th>Name</th><th>Behaviour</th><th className="text-right">Stock</th><th>Cost source</th><th className="text-right">Active unit cost</th><th className="text-right">Value</th><th /></tr></thead>

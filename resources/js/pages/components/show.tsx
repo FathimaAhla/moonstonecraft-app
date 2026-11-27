@@ -1,4 +1,5 @@
 import { Head, router, useForm } from '@inertiajs/react';
+import { KitGroupSelect } from '@/components/kit-group-select';
 import { Copy, Pencil, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -16,9 +17,9 @@ import * as stages from '@/routes/stages';
 
 type Line = { id: number; material_id: number; material: string; unit: string; qty: number; wastage_pct: number; unit_cost: number; cost_source: string; tracks_stock: boolean; cost: number };
 type Stage = { id: number; name: string; sort_order: number; lines: Line[] };
-type Component = { id: number; code: string; name: string; category_id: number | null; category: string | null; yield_qty: number; wastage_pct: number; keeps_stock: boolean; stock: number; prededucted_stock: number; reorder_level: number; notes: string | null; active: boolean };
+type Component = { id: number; code: string; name: string; category_id: number | null; category: string | null; yield_qty: number; wastage_pct: number; keeps_stock: boolean; stock: number; prededucted_stock: number; reorder_level: number; notes: string | null; active: boolean; kit_group: string | null };
 type Breakdown = { stages: { id: number; name: string; cost: number; running: number }[]; batch: number; wastage: number; unit: number };
-type MaterialRef = { id: number; name: string; unit: string; unit_cost: number; cost_source: string; is_purchasable: boolean; tracks_stock: boolean };
+type MaterialRef = { id: number; name: string; unit: string; unit_cost: number; cost_source: string; is_purchasable: boolean; tracks_stock: boolean; track_by_container: boolean };
 
 export default function ComponentShow({ component, stages: stageRows, breakdown, materials, categories, fromMaterials, movements, adjustReasons }: {
     component: Component;
@@ -38,7 +39,7 @@ export default function ComponentShow({ component, stages: stageRows, breakdown,
     const close = (open: boolean) => !open && setModal(null);
     const done = { preserveScroll: true, onSuccess: () => setModal(null) };
 
-    const details = useForm({ ...component, category_id: component.category_id ? String(component.category_id) : '', notes: component.notes ?? '' });
+    const details = useForm({ ...component, category_id: component.category_id ? String(component.category_id) : '', notes: component.notes ?? '', kit_group: component.kit_group ?? '' });
     const stageForm = useForm({ name: '' });
     const lineForm = useForm({ material_id: '', qty: '', wastage_pct: '' });
     const selected = materials.find((m) => String(m.id) === lineForm.data.material_id);
@@ -180,6 +181,7 @@ export default function ComponentShow({ component, stages: stageRows, breakdown,
                     </Field>
                     <Field label="Code" error={details.errors.code}><Input value={details.data.code} onChange={(e) => details.setData('code', e.target.value.toUpperCase())} /></Field>
                     <Field label="Name" error={details.errors.name}><Input value={details.data.name} onChange={(e) => details.setData('name', e.target.value)} /></Field>
+                    <Field label="Kit builder section" error={details.errors.kit_group}><KitGroupSelect value={details.data.kit_group} onChange={(v) => details.setData('kit_group', v)} /></Field>
                     <Field label="Yield per batch" error={details.errors.yield_qty}><NumberInput value={details.data.yield_qty} onChange={(e) => details.setData('yield_qty', Number(e.target.value))} /></Field>
                     <Field label="Whole-batch wastage % (applies to every line)" error={details.errors.wastage_pct}><NumberInput value={details.data.wastage_pct} onChange={(e) => details.setData('wastage_pct', Number(e.target.value))} /></Field>
                     <Field label="Low stock alert at" error={details.errors.reorder_level}><NumberInput value={details.data.reorder_level} onChange={(e) => details.setData('reorder_level', Number(e.target.value))} /></Field>
@@ -215,7 +217,7 @@ export default function ComponentShow({ component, stages: stageRows, breakdown,
                     <Field label={`Quantity per batch${selected ? ` (${selected.unit})` : ''}`} error={lineForm.errors.qty}><NumberInput value={lineForm.data.qty} onChange={(e) => lineForm.setData('qty', e.target.value)} /></Field>
                     <Field label="Line wastage %" error={lineForm.errors.wastage_pct}><NumberInput value={lineForm.data.wastage_pct} placeholder="0" onChange={(e) => lineForm.setData('wastage_pct', e.target.value)} /></Field>
                 </div>
-                {selected && Number(lineForm.data.qty) > 0 && <p className="text-sm text-muted-foreground">Line cost: <span className="font-medium text-foreground">{rs(selected.unit_cost * Number(lineForm.data.qty) * (1 + (Number(lineForm.data.wastage_pct) || 0) / 100))}</span>{selected.tracks_stock ? ' · deducted from stock when packed or sold' : ' · not deducted from stock'}</p>}
+                {selected && Number(lineForm.data.qty) > 0 && <p className="text-sm text-muted-foreground">Line cost: <span className="font-medium text-foreground">{rs(selected.unit_cost * Number(lineForm.data.qty) * (1 + (Number(lineForm.data.wastage_pct) || 0) / 100))}</span>{selected.tracks_stock && !selected.track_by_container ? ' · deducted from stock when packed or sold' : ' · not deducted from stock'}</p>}
             </FormModal>
 
             <FormModal open={modal === 'material'} onOpenChange={(o) => !o && setModal('line')} title="Add material or cost item" description="Saved straight away and selected on the line you were editing." submitLabel="Create" processing={materialForm.processing} onSubmit={saveMaterial}>

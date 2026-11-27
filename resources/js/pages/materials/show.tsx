@@ -1,5 +1,9 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { useState } from 'react';
+import { ContainerPanel } from '@/components/container-panel';
+import type { Container, Measured } from '@/components/container-panel';
+import { PackSizePanel } from '@/components/pack-size-panel';
+import type { PricedPackSize } from '@/components/pack-size-panel';
 import { Button } from '@/components/ui/button';
 import { EmptyRow, Field, FormModal, NumberInput, Page, PageHeader, Panel, Stat, Table, num, rs } from '@/components/ops';
 import * as materials from '@/routes/materials';
@@ -10,7 +14,7 @@ import type { Material } from './index';
 type Movement = { id: number; moved_on: string; qty: number; reason: string; ref_type: string | null; ref_id: number | null; unit_cost: number };
 type PurchaseLine = { id: number; qty: number; purchase_unit: string | null; conversion_factor: number; converted_qty: number | null; landed_unit_cost: number; purchase: { id: number; purchase_no: string; purchased_on: string } };
 
-export default function MaterialShow({ material, movements, purchases }: { material: Material; movements: Movement[]; purchases: PurchaseLine[] }) {
+export default function MaterialShow({ material, movements, purchases, packSizes, containers, measured }: { material: Material; movements: Movement[]; purchases: PurchaseLine[]; packSizes: PricedPackSize[]; containers: Container[]; measured: Measured | null }) {
     const [open, setOpen] = useState(false);
     const form = useForm({ qty: '' });
     const cost = useForm({ cost_source: material.cost_source as string, manual_unit_cost: material.manual_unit_cost === null ? '' : String(material.manual_unit_cost) });
@@ -62,6 +66,10 @@ export default function MaterialShow({ material, movements, purchases }: { mater
                     </p>
                     {cost.errors.cost_source && <p className="mt-2 text-sm text-red-600">{cost.errors.cost_source}</p>}
                 </Panel>
+
+                {material.is_purchasable && <PackSizePanel materialId={material.id} unit={material.unit} packSizes={packSizes} />}
+
+                {material.track_by_container && <ContainerPanel material={material} packSizes={packSizes} containers={containers} measured={measured} />}
 
                 {material.is_purchasable && (
                     <Panel title="Recent purchases" flush>

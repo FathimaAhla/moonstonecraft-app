@@ -1,18 +1,20 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { Pencil, Plus } from 'lucide-react';
+import { Copy, Pencil, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { DeleteButton, Stat, Field, FormModal, NativeSelect, NumberInput, Page, PageHeader, Panel, Table, num, pct, rs } from '@/components/ops';
 import { cn } from '@/lib/utils';
+import { KitAssortmentPanel, PackWithSetsModal } from '@/components/kit-assortment-panel';
+import type { Pickable } from '@/components/paint-dots';
 import { MovementsTable, StockActionModal } from '@/components/stock-actions';
 import type { Movement, StockAction } from '@/components/stock-actions';
 import * as optionParts from '@/routes/option-parts';
 import * as options from '@/routes/options';
 import * as products from '@/routes/products';
 
-type Option = { id: number; code: string; name: string; retail_price: number; wholesale_price: number | null; courier_packing_component_id: number | null; courier_fee_estimate: number; stock: number; reorder_level: number; active: boolean };
+type Option = { id: number; code: string; name: string; retail_price: number; wholesale_price: number | null; courier_packing_component_id: number | null; courier_fee_estimate: number; stock: number; reorder_level: number; active: boolean; figures_per_kit: number; paint_pots_per_kit: number; brushes_per_kit: number; kit_name: string; picks: boolean };
 type Part = { id: number; type: string; name: string; unit: string; qty: number; unit_cost: number; cost: number };
 type SuggestRow = { target: number; price: number; profit: number; markup: number; price_courier: number; profit_courier: number; markup_courier: number };
 type Pricing = { cost: number; cost_courier: number; min_margin: number; rows: SuggestRow[] };
@@ -49,8 +51,10 @@ function PriceCheck({ label, price, pricing }: { label: string; price: number; p
     );
 }
 
-export default function OptionShow({ option, product, parts, pricing, courierExtra, materials, components, canMake, movements, adjustReasons }: {
+export default function OptionShow({ option, product, parts, pricing, courierExtra, materials, components, canMake, movements, adjustReasons, pickable, packedUnrecorded }: {
     option: Option;
+    pickable: Pickable;
+    packedUnrecorded: { figures: number; paint: number };
     canMake: { can_make: number | null; limit: string | null };
     movements: Movement[];
     adjustReasons: string[];
@@ -80,10 +84,11 @@ export default function OptionShow({ option, product, parts, pricing, courierExt
         <>
             <Head title={option.code} />
             <Page>
-                <PageHeader title={`${option.code} ${option.name}`} description={`Option of ${product.code} ${product.name}`}>
+                <PageHeader title={`${option.code} ${option.name}`} description={`Product of kit ${product.code} ${product.name}`}>
                     <Button variant="outline" asChild><Link href={products.show(product.id)}>Back to product</Link></Button>
                     <Button asChild><Link href={options.edit(option.id)}><Pencil /> Edit kit</Link></Button>
-                    <DeleteButton url={options.destroy.url(option.id)} message="Delete this option?" label="Delete kit" withText />
+                    <Button variant="outline" asChild><Link href={options.create(product.id, { query: { copy: option.id } })}><Copy /> Copy kit</Link></Button>
+                    <DeleteButton url={options.destroy.url(option.id)} message="Delete this product?" label="Delete kit" withText />
                 </PageHeader>
 
                 <Panel
@@ -104,6 +109,8 @@ export default function OptionShow({ option, product, parts, pricing, courierExt
                     </div>
                     <MovementsTable movements={movements} />
                 </Panel>
+
+                <KitAssortmentPanel option={option} pickable={pickable} packedUnrecorded={packedUnrecorded} partsCanMake={canMake.can_make} />
 
                 {(() => {
                     const a = analyse(option.retail_price, pricing.cost);
@@ -217,7 +224,7 @@ export default function OptionShow({ option, product, parts, pricing, courierExt
                 <Field label="Quantity per kit" error={part.errors.qty}><NumberInput value={part.data.qty} onChange={(e) => part.setData('qty', e.target.value)} /></Field>
             </FormModal>
 
-            <FormModal open={modal === 'edit'} onOpenChange={close} title="Edit option" processing={form.processing} onSubmit={() => form.put(options.update.url(option.id), done)}>
+            <FormModal open={modal === 'edit'} onOpenChange={close} title="Edit product" processing={form.processing} onSubmit={() => form.put(options.update.url(option.id), done)}>
                 <div className="grid gap-4 sm:grid-cols-2">
                     <Field label="Code" error={form.errors.code}><Input value={form.data.code} onChange={(e) => form.setData('code', e.target.value.toUpperCase())} /></Field>
                     <Field label="Name" error={form.errors.name}><Input value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} /></Field>
@@ -231,9 +238,13 @@ export default function OptionShow({ option, product, parts, pricing, courierExt
                 </div>
                 <label className="flex items-center gap-2 text-sm"><Checkbox checked={form.data.active} onCheckedChange={(v) => form.setData('active', v === true)} /> Active (shown on the sale form)</label>
             </FormModal>
-            <StockActionModal key={stockAction ? stockAction.type : 'none'} action={stockAction} reasons={adjustReasons} onClose={() => setStockAction(null)} />
+            {stockAction?.type === 'pack' && (option.figures_per_kit > 0 || option.paint_pots_per_kit > 0) ? (
+                <PackWithSetsModal option={option} pickable={pickable} onClose={() => setStockAction(null)} />
+            ) : (
+                <StockActionModal key={stockAction ? stockAction.type : 'none'} action={stockAction} reasons={adjustReasons} onClose={() => setStockAction(null)} />
+            )}
         </>
     );
 }
 
-OptionShow.layout = { breadcrumbs: [{ title: 'Kits', href: products.index() }] };
+OptionShow.layout = { breadcrumbs: [{ title: 'Products', href: options.index() }] };

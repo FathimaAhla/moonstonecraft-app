@@ -3,12 +3,15 @@ import { Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import type { Pickable } from '@/components/paint-dots';
+import { FigureRows, PaintRows, setRowsPayload } from '@/components/set-rows';
+import type { FigureRow, PaintRow } from '@/components/set-rows';
 import { SearchSelect } from '@/components/search-select';
 import { Field, NativeSelect, NumberInput, Page, PageHeader, Panel, Table, Textarea, rs, today } from '@/components/ops';
 import * as customers from '@/routes/customers';
 import * as sales from '@/routes/sales';
 
-type OptionRef = { id: number; code: string; name: string; product_id: number; category_id: number | null; retail_price: number; wholesale_price: number | null };
+type OptionRef = { id: number; code: string; name: string; product_id: number; category_id: number | null; retail_price: number; wholesale_price: number | null; picks: boolean; figures_per_kit: number; paint_pots_per_kit: number } & Pickable;
 type Named = { id: number; name: string };
 type Kit = Named & { category_id: number | null };
 type Customer = { id: number; name: string; phone: string; address: string | null; city: string | null; type: string };
@@ -16,12 +19,12 @@ type Part = { type: 'component' | 'material'; id: string; qty: string };
 type DiscountType = 'amount' | 'percent';
 type Line = {
     custom: boolean; name: string; parts: Part[]; category_id: string; product_id: string; product_option_id: string; qty: string; unit_price: string;
-    discount_type: DiscountType; discount_value: string; offer_name: string;
+    discount_type: DiscountType; discount_value: string; offer_name: string; pick_now: boolean; figures: FigureRow[]; paint: PaintRow[];
 };
 
 const newLine = (custom = false): Line => ({
     custom, name: '', parts: [{ type: 'component', id: '', qty: '1' }], category_id: '', product_id: '', product_option_id: '', qty: '1', unit_price: '',
-    discount_type: 'amount', discount_value: '', offer_name: '',
+    discount_type: 'amount', discount_value: '', offer_name: '', pick_now: false, figures: [], paint: [],
 });
 
 /** Rs taken off a price: a percentage of it or a fixed amount, never more than the price. Matches SaleService::discountAmount. */
@@ -47,6 +50,7 @@ export default function SaleCreate({ customers: savedCustomers, categories, kits
         discount: '0',
         offer_name: '',
         courier_charge: '0',
+        courier_charge_payer: 'customer_on_delivery',
         amount_paid: '',
         due_date: '',
         notes: '',
@@ -107,8 +111,8 @@ export default function SaleCreate({ customers: savedCustomers, categories, kits
         const o = options.find((x) => String(x.id) === optionId);
 
         return o
-            ? { category_id: String(o.category_id ?? ''), product_id: String(o.product_id), product_option_id: optionId, unit_price: priceFor(optionId, d.sale_type) }
-            : { product_option_id: '', unit_price: '' };
+            ? { category_id: String(o.category_id ?? ''), product_id: String(o.product_id), product_option_id: optionId, unit_price: priceFor(optionId, d.sale_type), pick_now: false, figures: [], paint: [] }
+            : { product_option_id: '', unit_price: '', pick_now: false, figures: [], paint: [] };
     };
 
     const pickCategory = (i: number, categoryId: string) => {
@@ -139,8 +143,9 @@ export default function SaleCreate({ customers: savedCustomers, categories, kits
 
     const subtotal = d.items.reduce((s, l) => s + (Number(l.qty) || 0) * offerPrice(l), 0);
     const courier = d.delivery_method === 'courier' ? Number(d.courier_charge) || 0 : 0;
+    const courierChargeToCustomer = d.courier_charge_payer === 'business' ? 0 : courier;
     const billDiscount = discountOf(d.discount_type, d.discount, subtotal);
-    const total = subtotal - billDiscount + courier;
+    const total = subtotal - billDiscount + courierChargeToCustomer;
 
     return (
         <>
@@ -151,7 +156,14 @@ export default function SaleCreate({ customers: savedCustomers, categories, kits
                     className="space-y-4"
                     onSubmit={(e) => {
                         e.preventDefault();
-                        form.transform((data) => ({ ...data, items: data.items.map((l) => (l.custom ? l : { ...l, parts: [] })) }));
+                        form.transform((data) => ({
+                            ...data,
+                            items: data.items.map((l) => (l.custom ? l : {
+                                ...l,
+                                parts: [],
+                                assign: l.pick_now ? setRowsPayload(l.figures, l.paint) : { figures: [], paint: [] },
+                            })),
+                        }));
                         form.post(sales.store.url());
                     }}
                 >
@@ -239,71 +251,105 @@ export default function SaleCreate({ customers: savedCustomers, categories, kits
 
                     <Panel title="Items">
                         {errors.items && <p className="mb-2 text-sm text-red-600">{errors.items}</p>}
-                        <Table>
-                            <thead><tr><th className="w-36">Code</th><th className="w-44">Category</th><th className="w-52">Kit</th><th className="w-56">Option</th><th className="w-24 text-right">Qty</th><th className="w-32 text-right">Normal price</th><th className="w-52">Offer discount</th><th className="text-right">Line total</th><th /></tr></thead>
-                            <tbody>
-                                {d.items.map((l, i) => l.custom ? (
-                                    <tr key={i}>
-                                        <td colSpan={4}>
-                                            <CustomKit line={l} index={i} components={components} materials={materials} onChange={(patch) => setLine(i, patch)} errors={errors} />
-                                        </td>
-                                        <td><NumberInput className="min-w-20" value={l.qty} onChange={(e) => setLine(i, { qty: e.target.value })} /></td>
-                                        <td><NumberInput className="min-w-28" value={l.unit_price} onChange={(e) => setLine(i, { unit_price: e.target.value })} aria-invalid={!!errors[`items.${i}.unit_price`]} /></td>
-                                        <td><LineDiscount line={l} error={errors[`items.${i}.discount_value`]} onChange={(patch) => setLine(i, patch)} /></td>
-                                        <td className="text-right tabular-nums"><LineTotal line={l} /></td>
-                                        <td className="text-right"><Button type="button" variant="ghost" size="icon" onClick={() => form.setData('items', d.items.filter((_, j) => j !== i))}><Trash2 className="size-4" /></Button></td>
-                                    </tr>
-                                ) : (
-                                    <tr key={i}>
-                                        <td>
-                                            <SearchSelect
-                                                value={l.product_option_id}
-                                                placeholder="Code..."
-                                                invalid={!!errors[`items.${i}.product_option_id`]}
-                                                options={options.map((o) => ({ value: String(o.id), label: o.code, hint: o.name }))}
-                                                onChange={(id) => setLine(i, lineFromOption(id))}
-                                            />
-                                        </td>
-                                        <td>
-                                            <SearchSelect
-                                                clearable
-                                                value={l.category_id}
-                                                placeholder="Category..."
-                                                options={categories.map((c) => ({ value: String(c.id), label: c.name }))}
-                                                onChange={(id) => pickCategory(i, id)}
-                                            />
-                                        </td>
-                                        <td>
-                                            <SearchSelect
-                                                clearable
-                                                value={l.product_id}
-                                                placeholder="Kit..."
-                                                options={kitsFor(l.category_id).map((k) => ({ value: String(k.id), label: k.name }))}
-                                                onChange={(id) => pickKit(i, id)}
-                                            />
-                                        </td>
-                                        <td>
-                                            <SearchSelect
-                                                value={l.product_option_id}
-                                                placeholder="Option..."
-                                                invalid={!!errors[`items.${i}.product_option_id`]}
-                                                options={optionsFor(l.product_id, l.category_id).map((o) => ({ value: String(o.id), label: o.name, hint: o.code }))}
-                                                onChange={(id) => setLine(i, lineFromOption(id))}
-                                            />
-                                        </td>
-                                        <td><NumberInput className="min-w-20" value={l.qty} onChange={(e) => setLine(i, { qty: e.target.value })} aria-invalid={!!errors[`items.${i}.qty`]} /></td>
-                                        <td><NumberInput className="min-w-28" value={l.unit_price} onChange={(e) => setLine(i, { unit_price: e.target.value })} aria-invalid={!!errors[`items.${i}.unit_price`]} /></td>
-                                        <td><LineDiscount line={l} error={errors[`items.${i}.discount_value`]} onChange={(patch) => setLine(i, patch)} /></td>
-                                        <td className="text-right tabular-nums"><LineTotal line={l} /></td>
-                                        <td className="text-right">
-                                            {d.items.length > 1 && (
-                                                <Button type="button" variant="ghost" size="icon" onClick={() => form.setData('items', d.items.filter((_, j) => j !== i))}><Trash2 className="size-4" /></Button>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </Table>
+                        <div className="space-y-3">
+                            {d.items.map((l, i) => (
+                                <div key={i} className="rounded-lg border p-3">
+                                    <div className="mb-2 flex items-center justify-between">
+                                        <span className="text-xs font-medium text-muted-foreground">Item {i + 1}{l.custom ? ' · Custom kit' : ''}</span>
+                                        {(d.items.length > 1 || l.custom) && (
+                                            <Button type="button" variant="ghost" size="icon" onClick={() => form.setData('items', d.items.filter((_, j) => j !== i))}><Trash2 className="size-4" /></Button>
+                                        )}
+                                    </div>
+
+                                    {l.custom ? (
+                                        <CustomKit line={l} index={i} components={components} materials={materials} onChange={(patch) => setLine(i, patch)} errors={errors} />
+                                    ) : (
+                                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                            <Field label="Code">
+                                                <SearchSelect
+                                                    value={l.product_option_id}
+                                                    placeholder="Code..."
+                                                    invalid={!!errors[`items.${i}.product_option_id`]}
+                                                    options={options.map((o) => ({ value: String(o.id), label: o.code, hint: o.name }))}
+                                                    onChange={(id) => setLine(i, lineFromOption(id))}
+                                                />
+                                            </Field>
+                                            <Field label="Category">
+                                                <SearchSelect
+                                                    clearable
+                                                    value={l.category_id}
+                                                    placeholder="Category..."
+                                                    options={categories.map((c) => ({ value: String(c.id), label: c.name }))}
+                                                    onChange={(id) => pickCategory(i, id)}
+                                                />
+                                            </Field>
+                                            <Field label="Kit">
+                                                <SearchSelect
+                                                    clearable
+                                                    value={l.product_id}
+                                                    placeholder="Kit..."
+                                                    options={kitsFor(l.category_id).map((k) => ({ value: String(k.id), label: k.name }))}
+                                                    onChange={(id) => pickKit(i, id)}
+                                                />
+                                            </Field>
+                                            <Field label="Product">
+                                                <SearchSelect
+                                                    value={l.product_option_id}
+                                                    placeholder="Product..."
+                                                    invalid={!!errors[`items.${i}.product_option_id`]}
+                                                    options={optionsFor(l.product_id, l.category_id).map((o) => ({ value: String(o.id), label: o.name, hint: o.code }))}
+                                                    onChange={(id) => setLine(i, lineFromOption(id))}
+                                                />
+                                            </Field>
+                                        </div>
+                                    )}
+
+                                    {!l.custom && (() => {
+                                        const o = options.find((x) => String(x.id) === l.product_option_id);
+
+                                        if (!o || !o.picks || (o.figures_per_kit <= 0 && o.paint_pots_per_kit <= 0)) {
+                                            return null;
+                                        }
+
+                                        const needs = [o.figures_per_kit > 0 && `${o.figures_per_kit} ${o.figures_per_kit === 1 ? 'figure' : 'figures'}`, o.paint_pots_per_kit > 0 && `a ${o.paint_pots_per_kit}-pot paint set`].filter(Boolean).join(' and ');
+
+                                        return l.pick_now ? (
+                                            <div className="mt-3 space-y-2">
+                                                <div className="flex items-center justify-between gap-2 text-sm">
+                                                    <span className="text-muted-foreground">Each kit takes {needs}. Pick for some or all kits; the rest can be picked later on the sale.</span>
+                                                    <Button type="button" variant="ghost" size="sm" onClick={() => setLine(i, { pick_now: false, figures: [], paint: [] })}>Pick later</Button>
+                                                </div>
+                                                <div className="grid gap-3 lg:grid-cols-2">
+                                                    {o.figures_per_kit > 0 && <FigureRows needs={o} total={Number(l.qty) || 0} rows={l.figures} error={errors[`items.${i}.assign.figures`]} onChange={(figures) => setLine(i, { figures })} />}
+                                                    {o.paint_pots_per_kit > 0 && <PaintRows needs={o} total={Number(l.qty) || 0} rows={l.paint} error={errors[`items.${i}.assign.paint`]} onChange={(paint) => setLine(i, { paint })} />}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed px-3 py-2 text-sm">
+                                                <span><span className="font-medium">Each kit takes {needs}.</span> <span className="text-muted-foreground">Not picked yet: you can pick them later on the sale.</span></span>
+                                                <Button type="button" variant="outline" size="sm" onClick={() => setLine(i, { pick_now: true })}>Pick figures and paint now</Button>
+                                            </div>
+                                        );
+                                    })()}
+
+                                    <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                        <Field label="Qty">
+                                            <NumberInput value={l.qty} onChange={(e) => setLine(i, { qty: e.target.value })} aria-invalid={!!errors[`items.${i}.qty`]} />
+                                        </Field>
+                                        <Field label="Normal price">
+                                            <NumberInput value={l.unit_price} onChange={(e) => setLine(i, { unit_price: e.target.value })} aria-invalid={!!errors[`items.${i}.unit_price`]} />
+                                        </Field>
+                                        <Field label="Offer discount" className="sm:col-span-2 lg:col-span-1">
+                                            <LineDiscount line={l} error={errors[`items.${i}.discount_value`]} onChange={(patch) => setLine(i, patch)} />
+                                        </Field>
+                                        <div className="flex flex-col items-end justify-end text-right">
+                                            <span className="text-xs text-muted-foreground">Line total</span>
+                                            <span className="tabular-nums"><LineTotal line={l} /></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                         <div className="mt-3 flex flex-wrap gap-2">
                             <Button type="button" variant="outline" size="sm" onClick={() => form.setData('items', [...d.items, newLine()])}>Add item</Button>
                             <Button type="button" variant="outline" size="sm" onClick={() => form.setData('items', [...d.items, newLine(true)])}>Add custom kit</Button>
@@ -324,7 +370,16 @@ export default function SaleCreate({ customers: savedCustomers, categories, kits
                                 </Field>
                                 <Field label="Bill offer name" error={errors.offer_name}><Input value={d.offer_name} placeholder="e.g. Christmas offer" onChange={(e) => form.setData('offer_name', e.target.value)} /></Field>
                                 {d.delivery_method === 'courier' && (
-                                    <Field label="Courier charge to customer" error={errors.courier_charge}><NumberInput value={d.courier_charge} onChange={(e) => form.setData('courier_charge', e.target.value)} /></Field>
+                                    <>
+                                        <Field label="Courier charge" error={errors.courier_charge}><NumberInput value={d.courier_charge} onChange={(e) => form.setData('courier_charge', e.target.value)} /></Field>
+                                        <Field label="Who pays the courier charge" error={errors.courier_charge_payer}>
+                                            <NativeSelect value={d.courier_charge_payer} onChange={(e) => form.setData('courier_charge_payer', e.target.value)}>
+                                                <option value="customer_on_delivery">Customer, on delivery (COD)</option>
+                                                <option value="customer_bank_transfer">Customer, by bank transfer now</option>
+                                                <option value="business">We absorb it (deduct from courier's remittance)</option>
+                                            </NativeSelect>
+                                        </Field>
+                                    </>
                                 )}
                                 {d.payment_method !== 'cod' && (
                                     <Field label={d.sale_type === 'retail' ? 'Amount paid now (blank = full)' : 'Deposit paid now'} error={errors.amount_paid}>
@@ -342,11 +397,18 @@ export default function SaleCreate({ customers: savedCustomers, categories, kits
                                 <tbody>
                                     <tr><td>Subtotal</td><td className="text-right tabular-nums">{rs(subtotal)}</td></tr>
                                     <tr><td>Discount{d.discount_type === 'percent' && Number(d.discount) > 0 ? ` (${d.discount}%)` : ''}{d.offer_name ? ` · ${d.offer_name}` : ''}</td><td className="text-right tabular-nums">-{rs(billDiscount)}</td></tr>
-                                    {d.delivery_method === 'courier' && <tr><td>Courier</td><td className="text-right tabular-nums">{rs(courier)}</td></tr>}
+                                    {d.delivery_method === 'courier' && (
+                                        <tr>
+                                            <td>Courier{d.courier_charge_payer === 'business' ? ' (we absorb, not billed)' : ''}</td>
+                                            <td className="text-right tabular-nums">{rs(courierChargeToCustomer)}</td>
+                                        </tr>
+                                    )}
                                     <tr className="text-lg font-semibold"><td>Total</td><td className="text-right tabular-nums">{rs(total)}</td></tr>
                                 </tbody>
                             </Table>
                             {d.payment_method === 'cod' && <p className="mt-2 text-sm text-sky-700 dark:text-sky-300">Cash on delivery: no payment now. Add a COD remittance when the courier pays you.</p>}
+                            {d.delivery_method === 'courier' && d.courier_charge_payer === 'customer_on_delivery' && <p className="mt-2 text-sm text-sky-700 dark:text-sky-300">Courier charge is collected by the courier from the customer on delivery, along with the rest if COD.</p>}
+                            {d.delivery_method === 'courier' && d.courier_charge_payer === 'business' && <p className="mt-2 text-sm text-amber-700 dark:text-amber-300">Courier charge isn't billed to the customer. Record it as the courier's deduction (COD fee) when adding the remittance payment.</p>}
                             <Button className="mt-4 w-full" disabled={form.processing}>Save sale</Button>
                         </Panel>
                     </div>

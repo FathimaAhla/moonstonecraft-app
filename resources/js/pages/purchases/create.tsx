@@ -3,13 +3,15 @@ import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { PackSizeSelect } from '@/components/pack-size-select';
+import type { PackSizeRef } from '@/components/pack-size-select';
 import { Field, NativeSelect, NumberInput, Page, PageHeader, Panel, Table, Textarea, rs, today } from '@/components/ops';
 import * as purchases from '@/routes/purchases';
 
-type MaterialRef = { id: number; name: string; unit: string; unit_cost: number; purchase_unit: string | null; purchase_conversion: number };
-type Line = { material_id: string; qty: string; purchase_unit: string; conversion_factor: string; line_cost: string };
+type MaterialRef = { id: number; name: string; unit: string; unit_cost: number; purchase_unit: string | null; purchase_conversion: number; pack_sizes: PackSizeRef[] };
+type Line = { material_id: string; material_pack_size_id: string; qty: string; purchase_unit: string; conversion_factor: string; line_cost: string };
 
-const newLine = (): Line => ({ material_id: '', qty: '', purchase_unit: '', conversion_factor: '', line_cost: '' });
+const newLine = (): Line => ({ material_id: '', material_pack_size_id: '', qty: '', purchase_unit: '', conversion_factor: '', line_cost: '' });
 
 export default function PurchaseCreate({ materials, suppliers }: { materials: MaterialRef[]; suppliers: { id: number; name: string }[] }) {
     const form = useForm({
@@ -34,10 +36,14 @@ export default function PurchaseCreate({ materials, suppliers }: { materials: Ma
 
     const setLine = (i: number, key: keyof Line, value: string) => form.setData('lines', d.lines.map((l, j) => (j === i ? { ...l, [key]: value } : l)));
 
+    const pickPackSize = (i: number, packSize: PackSizeRef | null) => {
+        form.setData('lines', d.lines.map((l, j) => (j === i ? { ...l, material_pack_size_id: packSize ? String(packSize.id) : '', purchase_unit: packSize?.name ?? '', conversion_factor: packSize ? String(packSize.size) : '' } : l)));
+    };
+
     const pickMaterial = (i: number, id: string) => {
         const m = materials.find((x) => String(x.id) === id);
 
-        form.setData('lines', d.lines.map((l, j) => (j === i ? { ...l, material_id: id, purchase_unit: m?.purchase_unit ?? '', conversion_factor: m?.purchase_unit ? String(m.purchase_conversion) : '' } : l)));
+        form.setData('lines', d.lines.map((l, j) => (j === i ? { ...l, material_id: id, material_pack_size_id: '', purchase_unit: m?.purchase_unit ?? '', conversion_factor: m?.purchase_unit ? String(m.purchase_conversion) : '' } : l)));
     };
 
     return (
@@ -68,14 +74,16 @@ export default function PurchaseCreate({ materials, suppliers }: { materials: Ma
                     <Panel title="Lines">
                         {errors.lines && <p className="mb-2 text-sm text-red-600">{errors.lines}</p>}
                         <Table>
-                            <thead><tr><th>Material</th><th className="w-28 text-right">Qty bought</th><th className="w-28">Bought in</th><th className="w-28 text-right">Units each</th><th className="w-36 text-right">Line cost (Rs.)</th><th className="text-right">Extra</th><th className="text-right">Landed unit</th><th /></tr></thead>
+                            <thead><tr><th>Material</th><th className="w-28 text-right">Qty bought</th><th className="w-48">Bought in</th><th className="w-28 text-right">Units each</th><th className="w-36 text-right">Line cost (Rs.)</th><th className="text-right">Extra</th><th className="text-right">Landed unit</th><th /></tr></thead>
                             <tbody>
                                 {d.lines.map((l, i) => {
                                     const cost = Number(l.line_cost) || 0;
                                     const alloc = itemsTotal > 0 ? (extra * cost) / itemsTotal : 0;
                                     const factor = Number(l.conversion_factor) || 1;
                                     const qty = (Number(l.qty) || 0) * factor;
-                                    const unit = materials.find((m) => String(m.id) === l.material_id)?.unit ?? '';
+                                    const material = materials.find((m) => String(m.id) === l.material_id);
+                                    const unit = material?.unit ?? '';
+                                    const packSizes = material?.pack_sizes ?? [];
 
                                     return (
                                         <tr key={i}>
@@ -86,8 +94,11 @@ export default function PurchaseCreate({ materials, suppliers }: { materials: Ma
                                                 </NativeSelect>
                                             </td>
                                             <td><NumberInput value={l.qty} onChange={(e) => setLine(i, 'qty', e.target.value)} aria-invalid={!!errors[`lines.${i}.qty`]} /></td>
-                                            <td><Input value={l.purchase_unit} placeholder={unit} onChange={(e) => setLine(i, 'purchase_unit', e.target.value)} /></td>
-                                            <td><NumberInput value={l.conversion_factor} placeholder="1" onChange={(e) => setLine(i, 'conversion_factor', e.target.value)} aria-invalid={!!errors[`lines.${i}.conversion_factor`]} /></td>
+                                            <td className="space-y-1">
+                                                {packSizes.length > 0 && <PackSizeSelect packSizes={packSizes} unit={unit} value={l.material_pack_size_id} onPick={(p) => pickPackSize(i, p)} />}
+                                                {!l.material_pack_size_id && <Input value={l.purchase_unit} placeholder={unit} onChange={(e) => setLine(i, 'purchase_unit', e.target.value)} />}
+                                            </td>
+                                            <td><NumberInput value={l.conversion_factor} readOnly={!!l.material_pack_size_id} placeholder="1" onChange={(e) => setLine(i, 'conversion_factor', e.target.value)} aria-invalid={!!errors[`lines.${i}.conversion_factor`]} /></td>
                                             <td><NumberInput value={l.line_cost} onChange={(e) => setLine(i, 'line_cost', e.target.value)} aria-invalid={!!errors[`lines.${i}.line_cost`]} /></td>
                                             <td className="text-right tabular-nums">{rs(alloc)}</td>
                                             <td className="text-right tabular-nums">{qty > 0 ? `${rs((cost + alloc) / qty, 4)}/${unit} · ${qty.toLocaleString('en-LK', { maximumFractionDigits: 3 })} ${unit}` : '-'}</td>

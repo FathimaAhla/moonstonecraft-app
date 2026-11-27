@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { UserCog, Boxes, ClipboardCheck, PackageCheck, Puzzle, HandCoins, LayoutGrid, Package, Receipt, Settings, ShoppingCart, Tags, Trash2, Truck, Users, Wallet } from 'lucide-react';
+import { Boxes, Calculator, ClipboardCheck, HandCoins, LayoutGrid, Package, PackageCheck, Palette, Puzzle, Receipt, Settings, Shapes, ShoppingBag, ShoppingCart, Tags, Trash2, Truck, UserCog, Users, Wallet } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -13,13 +13,16 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { dashboard } from '@/routes';
+import { dashboard, priceCheck } from '@/routes';
 import * as business from '@/routes/business';
 import * as categories from '@/routes/categories';
 import * as components from '@/routes/components';
 import * as customers from '@/routes/customers';
 import * as expenses from '@/routes/expenses';
 import * as materials from '@/routes/materials';
+import * as options from '@/routes/options';
+import * as figures from '@/routes/figures';
+import * as paintSets from '@/routes/paint-sets';
 import * as products from '@/routes/products';
 import * as purchases from '@/routes/purchases';
 import * as receivables from '@/routes/receivables';
@@ -33,11 +36,15 @@ import type { NavItem } from '@/types';
 const mainNavItems: NavItem[] = [
     { title: 'Dashboard', href: dashboard(), icon: LayoutGrid },
     { title: 'New sale', href: sales.create(), icon: ShoppingCart },
+    { title: 'Price check', href: priceCheck(), icon: Calculator },
     { title: 'Sales', href: sales.index(), icon: Receipt },
     { title: 'Receivables', href: receivables.index(), icon: HandCoins },
     { title: 'Customers', href: customers.index(), icon: Users },
     { title: 'Components', href: components.index(), icon: Puzzle },
     { title: 'Kits', href: products.index(), icon: Package },
+    { title: 'Products', href: options.index(), icon: ShoppingBag },
+    { title: 'Figures', href: figures.index(), icon: Shapes },
+    { title: 'Paint sets', href: paintSets.index(), icon: Palette },
     { title: 'Categories', href: categories.index(), icon: Tags },
     { title: 'Stock', href: stock.index(), icon: PackageCheck },
     { title: 'Stock checks', href: stockChecks.index(), icon: ClipboardCheck },
