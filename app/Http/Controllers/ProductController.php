@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\ProductOption;
 use App\Services\Costing;
+use App\Services\KitCounts;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -39,7 +41,7 @@ class ProductController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $product = Product::query()->create($this->validated($request));
-        $this->toast('Kit created. Add its options.');
+        $this->toast('Kit created. Add its products.');
 
         return to_route('products.show', $product);
     }
@@ -51,7 +53,7 @@ class ProductController extends Controller
         return Inertia::render('products/show', [
             'product' => $product->only('id', 'code', 'name', 'category_id', 'notes', 'active') + ['category' => $product->category?->name],
             'options' => $product->options->map(fn ($option) => [
-                ...$option->only('id', 'code', 'name', 'retail_price', 'wholesale_price', 'active'),
+                ...$option->only('id', 'code', 'name', 'retail_price', 'wholesale_price', 'active', 'figures_per_kit', 'paint_pots_per_kit'),
                 'cost' => round($costing->optionCost($option), 2),
                 'cost_courier' => round($costing->optionCostWithCourier($option), 2),
             ]),
@@ -59,9 +61,14 @@ class ProductController extends Controller
         ]);
     }
 
-    public function update(Request $request, Product $product): RedirectResponse
+    public function update(Request $request, Product $product, KitCounts $counts): RedirectResponse
     {
         $product->update($this->validated($request, $product));
+
+        if ($product->wasChanged('category_id')) {
+            $product->options()->get()->each(fn (ProductOption $option) => $counts->sync($option));
+        }
+
         $this->toast('Kit updated.');
 
         return back();

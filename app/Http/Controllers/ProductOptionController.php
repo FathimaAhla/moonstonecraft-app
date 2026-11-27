@@ -2,13 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Category;
 use App\Models\Component;
 use App\Models\Material;
 use App\Models\OptionPart;
 use App\Models\Product;
 use App\Models\ProductOption;
 use App\Models\Setting;
+use App\Services\AssignmentService;
+use App\Services\ContainerService;
 use App\Services\Costing;
+use App\Services\KitCounts;
+use App\Services\KitGroups;
 use App\Services\KitStockService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,11 +25,78 @@ use Inertia\Response;
 
 class ProductOptionController extends Controller
 {
-    public function create(Product $product, Costing $costing): Response
+    /**
+     * Every product you sell (a kit option such as AST-2F-3P-1B) with its prices and stock,
+     * filtered by category, kit, active and low stock.
+     */
+    public function index(Request $request, KitCounts $counts, KitStockService $kits): Response
     {
+        $filters = [
+            'category' => $request->integer('category') ?: null,
+            'kit' => $request->integer('kit') ?: null,
+            'status' => in_array($request->string('status')->toString(), ['active', 'inactive', 'all'], true) ? $request->string('status')->toString() : 'active',
+            'low' => $request->boolean('low'),
+        ];
+
+        $rows = ProductOption::query()->with('product.category', 'parts.material', 'parts.component.stages.lines.material')
+            ->when($filters['category'], fn ($query, $id) => $query->whereHas('product', fn ($product) => $product->where('category_id', $id)))
+            ->when($filters['kit'], fn ($query, $id) => $query->where('product_id', $id))
+            ->when($filters['status'] !== 'all', fn ($query) => $query->where('active', $filters['status'] === 'active'))
+            ->when($filters['low'], fn ($query) => $query->whereColumn('stock', '<=', 'reorder_level'))
+            ->orderBy('code')->get()
+            ->map(function (ProductOption $option) use ($counts, $kits) {
+                $recipe = $counts->fromRecipe($option);
+
+                return [
+                    ...$option->only('id', 'code', 'name', 'retail_price', 'wholesale_price', 'stock', 'reorder_level', 'active'),
+                    'kit_id' => $option->product_id,
+                    'kit' => $option->product?->name,
+                    'category' => $option->product?->category?->name,
+                    'figures' => $recipe['figures'],
+                    'pots' => $recipe['pots'],
+                    'brushes' => $recipe['brushes'],
+                    'low' => $option->stock <= $option->reorder_level,
+                    'can_make' => $kits->canMakeOption($option),
+                ];
+            });
+
+        return Inertia::render('options/index', [
+            'products' => $rows,
+            'categories' => Category::query()->orderBy('sort')->get(['id', 'name']),
+            'kits' => Product::query()->orderBy('name')->get(['id', 'name', 'category_id']),
+            'filters' => $filters,
+        ]);
+    }
+
+    /**
+     * Look up a price without starting a sale: pick a kit, then how many figures, pots and
+     * brushes, and see the matching product's prices and stock.
+     */
+    public function priceCheck(KitCounts $counts, KitStockService $kits): Response
+    {
+        return Inertia::render('options/price-check', [
+            'products' => ProductOption::query()->with('product', 'parts.material', 'parts.component.stages.lines.material')
+                ->where('active', true)->orderBy('code')->get()
+                ->map(fn (ProductOption $option) => [
+                    ...$option->only('id', 'code', 'name', 'retail_price', 'wholesale_price', 'stock'),
+                    'kit_id' => $option->product_id,
+                    ...$counts->fromRecipe($option),
+                    'can_make' => $kits->canMakeOption($option)['can_make'],
+                ])->values(),
+            'categories' => Category::query()->orderBy('sort')->get(['id', 'name']),
+            'kits' => Product::query()->where('active', true)->whereHas('options', fn ($query) => $query->where('active', true))
+                ->orderBy('name')->get(['id', 'name', 'category_id']),
+        ]);
+    }
+
+    public function create(Request $request, Product $product, Costing $costing): Response
+    {
+        $source = $request->filled('copy') ? $product->options()->with('parts')->findOrFail($request->integer('copy')) : null;
+
         return Inertia::render('options/form', [
             'product' => $product->only('id', 'code', 'name'),
             'option' => null,
+            'copyFrom' => $source ? $this->formData($source) : null,
             ...$this->builderData($costing),
         ]);
     }
@@ -35,13 +107,8 @@ class ProductOptionController extends Controller
 
         return Inertia::render('options/form', [
             'product' => $option->product->only('id', 'code', 'name'),
-            'option' => $option->only('id', 'code', 'name', 'retail_price', 'wholesale_price', 'courier_packing_component_id', 'courier_fee_estimate', 'active') + [
-                'parts' => $option->parts->map(fn (OptionPart $part) => [
-                    'kind' => $part->component_id ? 'component' : 'material',
-                    'id' => $part->component_id ?? $part->material_id,
-                    'qty' => $part->qty,
-                ]),
-            ],
+            'option' => $this->formData($option),
+            'copyFrom' => null,
             ...$this->builderData($costing),
         ]);
     }
@@ -54,18 +121,26 @@ class ProductOptionController extends Controller
 
             return $option;
         });
-        $this->toast('Option created.');
+        $this->toast('Product created.');
 
         return to_route('options.show', $option);
     }
 
-    public function show(ProductOption $option, Costing $costing, KitStockService $kits): Response
+    public function show(ProductOption $option, Costing $costing, KitStockService $kits, AssignmentService $assignments, KitCounts $counts): Response
     {
+        $canMake = $kits->canMakeOption($option);
+
         $option->load('product.category', 'parts.material', 'parts.component.stages.lines.material', 'courierPacking.stages.lines.material');
 
         return Inertia::render('options/show', [
-            'option' => $option->only('id', 'code', 'name', 'retail_price', 'wholesale_price', 'courier_packing_component_id', 'courier_fee_estimate', 'stock', 'reorder_level', 'active'),
-            'canMake' => $kits->canMakeOption($option),
+            'option' => $option->only('id', 'code', 'name', 'retail_price', 'wholesale_price', 'courier_packing_component_id', 'courier_fee_estimate', 'stock', 'reorder_level', 'active', 'figures_per_kit', 'paint_pots_per_kit') + [
+                'kit_name' => $option->product->name,
+                'picks' => KitCounts::picksFiguresAndPaint($option),
+                'brushes_per_kit' => $counts->fromRecipe($option)['brushes'],
+            ],
+            'canMake' => $canMake,
+            'pickable' => $assignments->pickable($option),
+            'packedUnrecorded' => $assignments->packedUnrecorded($option),
             'movements' => $option->movements()->latest('moved_on')->latest('id')->limit(100)->get(),
             'adjustReasons' => KitStockService::ADJUST_REASONS,
             'product' => $option->product->only('id', 'code', 'name'),
@@ -91,7 +166,7 @@ class ProductOptionController extends Controller
             $option->update($this->validated($request, $option));
             $this->syncParts($request, $option);
         });
-        $this->toast('Option saved.');
+        $this->toast('Product saved.');
 
         return $request->has('parts') ? to_route('options.show', $option) : back();
     }
@@ -99,12 +174,12 @@ class ProductOptionController extends Controller
     public function destroy(ProductOption $option): RedirectResponse
     {
         $productId = $option->product_id;
-        $this->deleteOrRefuse(fn () => $option->delete(), 'Option');
+        $this->deleteOrRefuse(fn () => $option->delete(), 'Product');
 
         return $option->exists ? back() : to_route('products.show', $productId);
     }
 
-    public function storePart(Request $request, ProductOption $option): RedirectResponse
+    public function storePart(Request $request, ProductOption $option, KitCounts $counts): RedirectResponse
     {
         $data = $request->validate([
             'material_id' => ['nullable', 'required_without:component_id', 'exists:materials,id'],
@@ -112,15 +187,31 @@ class ProductOptionController extends Controller
             'qty' => ['required', 'numeric', 'gt:0'],
         ]);
         $option->parts()->create($data);
+        $counts->sync($option);
 
         return back();
     }
 
-    public function destroyPart(OptionPart $part): RedirectResponse
+    public function destroyPart(OptionPart $part, KitCounts $counts): RedirectResponse
     {
         $part->delete();
+        $counts->sync($part->option);
 
         return back();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function formData(ProductOption $option): array
+    {
+        return $option->only('id', 'code', 'name', 'retail_price', 'wholesale_price', 'courier_packing_component_id', 'courier_fee_estimate', 'active') + [
+            'parts' => $option->parts->map(fn (OptionPart $part) => [
+                'kind' => $part->component_id ? 'component' : 'material',
+                'id' => $part->component_id ?? $part->material_id,
+                'qty' => $part->qty,
+            ]),
+        ];
     }
 
     /**
@@ -135,6 +226,7 @@ class ProductOptionController extends Controller
                 'id' => $component->id,
                 'code' => $component->code,
                 'name' => $component->name,
+                'group' => KitGroups::resolve($component->kit_group, $component->name),
                 'unit_cost' => round($costing->componentUnitCost($component), 4),
                 'stages' => collect($costing->componentBreakdown($component)['stages'])
                     ->map(fn (array $stage) => ['name' => $stage['name'], 'cost' => $component->yield_qty > 0 ? round($stage['cost'] / $component->yield_qty, 4) : 0])
@@ -143,7 +235,14 @@ class ProductOptionController extends Controller
 
         return [
             'components' => $components,
-            'materials' => Material::query()->orderBy('name')->get(['id', 'name', 'unit', 'unit_cost']),
+            'materials' => Material::query()->orderBy('name')->get()->map(fn (Material $material) => [
+                'id' => $material->id,
+                'name' => $material->name,
+                'unit' => $material->unit,
+                'unit_cost' => $material->unit_cost,
+                'group' => KitGroups::resolve($material->kit_group, $material->name, ! $material->is_purchasable),
+                'measured_qty' => $material->track_by_container ? (app(ContainerService::class)->measured($material)['qty_per_kit'] ?? null) : null,
+            ])->all(),
             'minMargin' => (float) Setting::value('min_margin_pct') / 100,
             'priceStep' => max(1, (int) Setting::value('price_step')),
         ];
@@ -180,6 +279,8 @@ class ProductOptionController extends Controller
                 'qty' => $part['qty'],
             ]);
         }
+
+        app(KitCounts::class)->sync($option);
     }
 
     /**

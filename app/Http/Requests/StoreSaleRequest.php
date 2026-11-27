@@ -13,6 +13,9 @@ class StoreSaleRequest extends FormRequest
     /** A discount is a percentage of the price or a fixed Rs amount. */
     public const DISCOUNT_TYPES = ['percent', 'amount'];
 
+    /** Who pays the courier charge, and when. */
+    public const COURIER_CHARGE_PAYERS = ['customer_on_delivery', 'customer_bank_transfer', 'business'];
+
     public function authorize(): bool
     {
         return true;
@@ -37,6 +40,7 @@ class StoreSaleRequest extends FormRequest
             'discount' => ['nullable', 'numeric', 'min:0', Rule::when($this->input('discount_type') === 'percent', ['max:100'])],
             'offer_name' => ['nullable', 'string', 'max:255'],
             'courier_charge' => ['nullable', 'numeric', 'min:0'],
+            'courier_charge_payer' => ['nullable', Rule::in(self::COURIER_CHARGE_PAYERS)],
             'amount_paid' => ['nullable', 'numeric', 'min:0'],
             'due_date' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
@@ -53,6 +57,15 @@ class StoreSaleRequest extends FormRequest
             'items.*.discount_type' => ['nullable', Rule::in(self::DISCOUNT_TYPES)],
             'items.*.discount_value' => ['nullable', 'numeric', 'min:0'],
             'items.*.offer_name' => ['nullable', 'string', 'max:255'],
+            'items.*.assign' => ['nullable', 'array'],
+            'items.*.assign.figures' => ['nullable', 'array'],
+            'items.*.assign.figures.*.combo_id' => ['nullable', 'integer', 'exists:figure_combos,id'],
+            'items.*.assign.figures.*.designs' => ['nullable', 'array'],
+            'items.*.assign.figures.*.designs.*' => ['integer', 'min:0', 'max:12'],
+            'items.*.assign.figures.*.qty' => ['required', 'numeric', 'gt:0'],
+            'items.*.assign.paint' => ['nullable', 'array'],
+            'items.*.assign.paint.*.component_id' => ['required', 'integer', 'exists:components,id'],
+            'items.*.assign.paint.*.qty' => ['required', 'numeric', 'gt:0'],
         ];
     }
 
@@ -72,6 +85,14 @@ class StoreSaleRequest extends FormRequest
                     $validator->errors()->add("items.{$index}.discount_value", 'A percentage discount cannot be more than 100%.');
                 } elseif ($type === 'amount' && $value > (float) ($item['unit_price'] ?? 0)) {
                     $validator->errors()->add("items.{$index}.discount_value", 'The discount cannot be more than the unit price.');
+                }
+
+                foreach (['figures', 'paint'] as $type) {
+                    $assigned = collect($item['assign'][$type] ?? [])->sum(fn ($row) => (float) ($row['qty'] ?? 0));
+
+                    if ($assigned > (float) ($item['qty'] ?? 0) + 1e-9) {
+                        $validator->errors()->add("items.{$index}.assign.{$type}", 'These rows add up to more kits than the quantity sold.');
+                    }
                 }
             }
         }];

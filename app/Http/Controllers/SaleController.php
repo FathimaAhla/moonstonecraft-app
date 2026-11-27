@@ -12,13 +12,17 @@ use App\Models\ProductOption;
 use App\Models\Sale;
 use App\Models\SalePayment;
 use App\Models\Setting;
+use App\Services\AssignmentService;
+use App\Services\KitCounts;
 use App\Services\SaleService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use InvalidArgumentException;
 
 class SaleController extends Controller
 {
@@ -34,7 +38,7 @@ class SaleController extends Controller
         ]);
     }
 
-    public function create(): Response
+    public function create(AssignmentService $assignments): Response
     {
         return Inertia::render('sales/create', [
             'customers' => Customer::query()->orderBy('name')->get(['id', 'name', 'phone', 'address', 'city', 'type']),
@@ -42,7 +46,7 @@ class SaleController extends Controller
             'components' => Component::query()->where('active', true)->orderBy('code')->get(['id', 'code', 'name']),
             'materials' => Material::query()->where('is_purchasable', true)->orderBy('name')->get(['id', 'name', 'unit']),
             'kits' => Product::query()->where('active', true)->orderBy('name')->get(['id', 'name', 'category_id']),
-            'options' => ProductOption::query()->with('product:id,name,category_id')->where('active', true)->orderBy('code')->get()
+            'options' => ProductOption::query()->with('product.category')->where('active', true)->orderBy('code')->get()
                 ->map(fn (ProductOption $option) => [
                     'id' => $option->id,
                     'code' => $option->code,
@@ -51,13 +55,21 @@ class SaleController extends Controller
                     'category_id' => $option->product?->category_id,
                     'retail_price' => $option->retail_price,
                     'wholesale_price' => $option->wholesale_price,
+                    'picks' => KitCounts::picksFiguresAndPaint($option),
+                    'figures_per_kit' => $option->figures_per_kit,
+                    'paint_pots_per_kit' => $option->paint_pots_per_kit,
+                    ...$assignments->pickable($option),
                 ]),
         ]);
     }
 
     public function store(StoreSaleRequest $request, SaleService $service): RedirectResponse
     {
-        $sale = $service->record($request->validated());
+        try {
+            $sale = $service->record($request->validated());
+        } catch (InvalidArgumentException $exception) {
+            throw ValidationException::withMessages(['items' => $exception->getMessage()]);
+        }
         $this->toast("Sale {$sale->invoice_no} saved.");
 
         if (Setting::value('default_print_action') === 'receipt') {
@@ -71,10 +83,14 @@ class SaleController extends Controller
         return to_route('sales.show', $sale);
     }
 
-    public function show(Sale $sale): Response
+    public function show(Sale $sale, AssignmentService $assignments): Response
     {
+        $sale->load('customer', 'items.option', 'items.assignments', 'payments');
+
         return Inertia::render('sales/show', [
-            'sale' => $sale->load('customer', 'items', 'payments')->makeHidden(['cost_total', 'courier_cost']),
+            'sale' => $sale->makeHidden(['cost_total', 'courier_cost']),
+            'assignments' => $sale->items->mapWithKeys(fn ($item) => [$item->id => $assignments->itemPanel($item)])->filter()->all(),
+            'pickable' => $sale->items->pluck('option')->filter()->unique('id')->mapWithKeys(fn (ProductOption $option) => [$option->id => $assignments->pickable($option)])->all(),
             'profit' => [
                 'cost' => round($sale->cost_total + $sale->courier_cost, 2),
                 'profit' => round($sale->total - $sale->cost_total - $sale->courier_cost, 2),

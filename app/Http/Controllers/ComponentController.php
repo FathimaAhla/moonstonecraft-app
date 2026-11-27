@@ -8,6 +8,7 @@ use App\Models\ComponentStage;
 use App\Models\Material;
 use App\Models\StageLine;
 use App\Services\Costing;
+use App\Services\KitGroups;
 use App\Services\KitStockService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -53,7 +54,7 @@ class ComponentController extends Controller
         $component->load('category', 'stages.lines.material');
 
         return Inertia::render('components/show', [
-            'component' => $component->only('id', 'code', 'name', 'category_id', 'yield_qty', 'wastage_pct', 'keeps_stock', 'stock', 'prededucted_stock', 'reorder_level', 'notes', 'active') + ['category' => $component->category?->name],
+            'component' => $component->only('id', 'code', 'name', 'category_id', 'yield_qty', 'wastage_pct', 'keeps_stock', 'stock', 'prededucted_stock', 'reorder_level', 'notes', 'active', 'kit_group') + ['category' => $component->category?->name],
             'fromMaterials' => $kits->canMakeComponent($component),
             'movements' => $component->movements()->latest('moved_on')->latest('id')->limit(100)->get(),
             'adjustReasons' => KitStockService::ADJUST_REASONS,
@@ -70,12 +71,12 @@ class ComponentController extends Controller
                     'wastage_pct' => $line->wastage_pct,
                     'unit_cost' => $line->material?->unit_cost,
                     'cost_source' => $line->material?->cost_source,
-                    'tracks_stock' => (bool) $line->material?->tracks_stock,
+                    'tracks_stock' => (bool) $line->material?->deductsStock(),
                     'cost' => round($costing->lineQty($line) * ($line->material?->unit_cost ?? 0), 4),
                 ]),
             ]),
             'breakdown' => $costing->componentBreakdown($component),
-            'materials' => Material::query()->orderBy('name')->get(['id', 'name', 'unit', 'unit_cost', 'cost_source', 'is_purchasable', 'tracks_stock']),
+            'materials' => Material::query()->orderBy('name')->get(['id', 'name', 'unit', 'unit_cost', 'cost_source', 'is_purchasable', 'tracks_stock', 'track_by_container']),
             'categories' => Category::query()->orderBy('sort')->get(['id', 'name']),
         ]);
     }
@@ -199,6 +200,7 @@ class ComponentController extends Controller
             'category_id' => ['nullable', 'exists:categories,id'],
             'code' => ['required', 'string', 'max:50', Rule::unique('components')->ignore($component)],
             'name' => ['required', 'string', 'max:255'],
+            'kit_group' => ['sometimes', 'nullable', Rule::in(KitGroups::ALL)],
             'yield_qty' => ['required', 'numeric', 'gt:0'],
             'wastage_pct' => ['required', 'numeric', 'min:0', 'max:100'],
             'keeps_stock' => ['boolean'],
