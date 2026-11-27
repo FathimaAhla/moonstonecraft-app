@@ -209,7 +209,8 @@ class Costing
     }
 
     /**
-     * What packing $qty of a kit option takes out of stock.
+     * What packing $qty of a kit option takes out of stock. Figure and pot lines taken by the
+     * picked figure and paint sets are left out.
      *
      * @return array{materials: array<int, float>, components: array<int, float>, options: array<int, float>}
      */
@@ -219,6 +220,10 @@ class Costing
         $bag = StockService::bag();
 
         foreach ($option->parts as $part) {
+            if (KitCounts::takenByPicks($option, $part)) {
+                continue;
+            }
+
             if ($part->component) {
                 $bag = StockService::mergeBags($bag, $this->componentStockUsage($part->component, $part->qty * $qty));
             } elseif ($part->material && $part->material->deductsStock()) {

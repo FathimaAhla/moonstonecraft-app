@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 
 class SaleService
 {
-    public function __construct(private Costing $costing, private StockService $stock, private KitStockService $kits) {}
+    public function __construct(private Costing $costing, private StockService $stock, private KitStockService $kits, private AssignmentService $assignments) {}
 
     /**
      * Record a sale: customer, cost snapshot, stock deduction, payments and status.
@@ -37,6 +37,7 @@ class SaleService
                 'discount_value' => (float) ($data['discount'] ?? 0),
                 'offer_name' => $data['offer_name'] ?? null,
                 'courier_charge' => $data['delivery_method'] === 'courier' ? (float) ($data['courier_charge'] ?? 0) : 0,
+                'courier_charge_payer' => $data['delivery_method'] === 'courier' ? ($data['courier_charge_payer'] ?? 'customer_on_delivery') : 'customer_on_delivery',
                 'due_date' => $data['due_date'] ?? null,
                 'notes' => $data['notes'] ?? null,
             ]);
@@ -60,7 +61,7 @@ class SaleService
                     $built = $this->optionItem($option, $qty);
                 }
 
-                $sale->items()->create([
+                $item = $sale->items()->create([
                     'product_option_id' => $option?->id,
                     'code' => $option?->code ?? 'CUSTOM',
                     'name' => $option ? $option->product?->name.' - '.$option->name : ($line['name'] ?: 'Custom kit'),
@@ -78,8 +79,13 @@ class SaleService
                 ]);
 
                 $this->kits->deductUsage($built['usage'], 'sale', $sale, $date);
+
+                if ($option) {
+                    $this->assignments->recordForItem($item, (array) ($line['assign'] ?? []));
+                }
+
                 $subtotal += $qty * $unitPrice;
-                $costTotal += $qty * $built['unit_cost'];
+                $costTotal += $qty * $item->fresh()->unit_cost;
                 $courierOption ??= ($option && ($option->courier_packing_component_id || $option->courier_fee_estimate > 0)) ? $option : null;
             }
 
@@ -94,9 +100,11 @@ class SaleService
                 $this->kits->deductUsage($courierUsage, 'sale', $sale, $date);
             }
 
+            $courierChargeToCustomer = $sale->courier_charge_payer === 'business' ? 0.0 : $sale->courier_charge;
+
             $sale->subtotal = round($subtotal, 2);
             $sale->discount = self::discountAmount($sale->discount_type, $sale->discount_value, $sale->subtotal);
-            $sale->total = round($subtotal - $sale->discount + $sale->courier_charge, 2);
+            $sale->total = round($subtotal - $sale->discount + $courierChargeToCustomer, 2);
             $sale->cost_total = round($costTotal, 2);
             $sale->courier_cost = round($courierCost, 2);
             $sale->courier_usage = $courierUsage;
@@ -242,6 +250,7 @@ class SaleService
         DB::transaction(function () use ($sale) {
             foreach ($sale->items as $item) {
                 $this->kits->restoreUsage($item->usage ?? [], 'adjustment', $sale);
+                $this->assignments->restoreItem($item, $sale);
                 $this->kits->returnAllocations($item->allocations ?? []);
             }
 

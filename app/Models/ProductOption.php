@@ -24,6 +24,8 @@ class ProductOption extends Model
             'retail_price' => 'float',
             'wholesale_price' => 'float',
             'courier_fee_estimate' => 'float',
+            'figures_per_kit' => 'integer',
+            'paint_pots_per_kit' => 'integer',
             'stock' => 'float',
             'reorder_level' => 'float',
             'active' => 'boolean',

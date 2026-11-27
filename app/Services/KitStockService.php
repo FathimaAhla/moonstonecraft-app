@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Component;
 use App\Models\Material;
+use App\Models\OptionPart;
 use App\Models\PackRecord;
 use App\Models\ProductOption;
 use Illuminate\Database\Eloquent\Model;
@@ -30,13 +31,23 @@ class KitStockService
     public function __construct(private Costing $costing, private StockService $stock) {}
 
     /**
-     * You made $qty of a part (figures, paint pots). Its stock goes up. Materials are NOT
-     * deducted: that happens when the part goes into a packed or sold kit.
+     * You made $qty of a part (figures, paint pots). Its stock goes up. Materials are normally
+     * NOT deducted: that happens when the part goes into a packed or sold kit. Parts marked
+     * "uses materials when made" (paint sets) take their materials now instead, and that stock
+     * is counted as prededucted so packing or selling it never deducts the paint a second time.
      */
     public function make(Component $component, float $qty, ?Carbon $on = null, ?string $note = null): void
     {
         $this->ensureKeepsStock($component);
-        DB::transaction(fn () => $this->stock->moveComponent($component->id, $qty, 'made', null, $on, $note));
+
+        DB::transaction(function () use ($component, $qty, $on, $note) {
+            if ($component->uses_materials_when_made) {
+                $this->stock->deduct($this->costing->componentUsage($component, $qty), 'made', $component, $on);
+                Component::query()->whereKey($component->id)->increment('prededucted_stock', $qty);
+            }
+
+            $this->stock->moveComponent($component->id, $qty, 'made', null, $on, $note);
+        });
     }
 
     /**
@@ -256,13 +267,16 @@ class KitStockService
     }
 
     /**
-     * What a kit option is made of right now, as plan parts.
+     * What a kit option takes out of stock right now, as plan parts. Figure and pot lines of a
+     * kit that picks its figure and paint sets are left out: the picks take that stock.
      *
      * @return list<array{component_id: int|null, material_id: int|null, qty: float}>
      */
     public function optionParts(ProductOption $option): array
     {
-        return $option->parts()->get()->map(fn ($part) => ['component_id' => $part->component_id, 'material_id' => $part->material_id, 'qty' => $part->qty])->all();
+        return $option->parts()->with('component', 'material')->get()
+            ->reject(fn (OptionPart $part) => KitCounts::takenByPicks($option, $part))
+            ->map(fn (OptionPart $part) => ['component_id' => $part->component_id, 'material_id' => $part->material_id, 'qty' => $part->qty])->values()->all();
     }
 
     /**
@@ -386,6 +400,17 @@ class KitStockService
         }
 
         return $sum;
+    }
+
+    /**
+     * How many times a stock bag (what one unit takes) fits into what is in stock.
+     *
+     * @param  array{materials: array<int, float>, components: array<int, float>, options: array<int, float>}  $perUnit
+     * @return array{can_make: int|null, limit: string|null}
+     */
+    public function canMakeBag(array $perUnit): array
+    {
+        return $this->canMake($perUnit);
     }
 
     /**

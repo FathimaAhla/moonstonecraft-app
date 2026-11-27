@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SaleItem extends Model
 {
@@ -37,5 +38,11 @@ class SaleItem extends Model
     public function option(): BelongsTo
     {
         return $this->belongsTo(ProductOption::class, 'product_option_id');
+    }
+
+    /** @return HasMany<SaleItemAssignment, $this> */
+    public function assignments(): HasMany
+    {
+        return $this->hasMany(SaleItemAssignment::class)->orderBy('id');
     }
 }

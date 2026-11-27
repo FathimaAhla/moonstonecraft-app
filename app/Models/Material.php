@@ -18,6 +18,7 @@ class Material extends Model
     protected $attributes = [
         'is_purchasable' => true,
         'tracks_stock' => true,
+        'track_by_container' => false,
         'cost_source' => 'purchase',
         'purchase_conversion' => 1,
     ];
@@ -33,6 +34,7 @@ class Material extends Model
             'reorder_level' => 'float',
             'is_purchasable' => 'boolean',
             'tracks_stock' => 'boolean',
+            'track_by_container' => 'boolean',
             'purchase_conversion' => 'float',
             'purchase_unit_cost' => 'float',
             'manual_unit_cost' => 'float',
@@ -57,6 +59,10 @@ class Material extends Model
                 }
             }
 
+            if (! $material->tracks_stock) {
+                $material->track_by_container = false;
+            }
+
             $material->type = $material->is_purchasable || $material->tracks_stock ? 'material' : 'overhead';
 
             if ($material->cost_source === 'manual') {
@@ -75,6 +81,18 @@ class Material extends Model
         return $this->hasMany(PurchaseItem::class);
     }
 
+    /** @return HasMany<MaterialPackSize, $this> */
+    public function packSizes(): HasMany
+    {
+        return $this->hasMany(MaterialPackSize::class)->orderBy('size');
+    }
+
+    /** @return HasMany<MaterialContainer, $this> */
+    public function containers(): HasMany
+    {
+        return $this->hasMany(MaterialContainer::class);
+    }
+
     /** @return HasMany<StockMovement, $this> */
     public function movements(): HasMany
     {
@@ -82,11 +100,12 @@ class Material extends Model
     }
 
     /**
-     * Whether recipes and sales automatically deduct this item from stock.
+     * Whether recipes and sales automatically deduct this item from stock. Container-tracked
+     * items leave stock when a container is opened instead.
      */
     public function deductsStock(): bool
     {
-        return $this->tracks_stock;
+        return $this->tracks_stock && ! $this->track_by_container;
     }
 
     public function usesManualCost(): bool
