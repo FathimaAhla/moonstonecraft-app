@@ -19,7 +19,7 @@ test('every screen renders with sample data', function () {
 
     $urls = [
         route('dashboard'), route('categories.index'), route('materials.index'), route('materials.show', Material::query()->first()),
-        route('components.index'), route('components.show', Component::query()->first()), route('products.index'), route('products.show', Product::query()->first()), route('options.show', ProductOption::query()->first()),
+        route('components.index'), route('components.show', Component::query()->first()), route('products.index'), route('products.show', Product::query()->first()), route('options.index'), route('price-check'), route('options.show', ProductOption::query()->first()),
         route('purchases.index'), route('purchases.create'), route('sales.index'), route('sales.create'), route('receivables.index'),
         route('customers.index'), route('wastage.index'), route('stock.index'), route('stock-checks.index'), route('expenses.index'), route('business.edit'),
         route('reports.export', 'sales'),
