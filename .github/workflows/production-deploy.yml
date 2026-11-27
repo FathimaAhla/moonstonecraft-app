@@ -5,11 +5,6 @@ on:
     branches:
       - production-deploy
   workflow_dispatch:
-    inputs:
-      fresh_database:
-        description: 'Wipe the production database and reseed it (migrate:fresh --seed). ALL DATA IS DELETED.'
-        type: boolean
-        default: false
 
 concurrency:
   group: production-deploy
@@ -91,11 +86,10 @@ jobs:
       - name: Run remote deploy commands
         env:
           SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT || '22' }}
-          FRESH_DATABASE: ${{ inputs.fresh_database == true }}
         run: |
           # vendor/ and public/build/ were built above and synced, so no composer or npm runs on the server.
           ssh -i ~/.ssh/id_ed25519 -p "$SSH_PORT" "${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}" \
-            "bash -s -- '$APP_PATH' '$FRESH_DATABASE'" << 'EOF'
+            "bash -s -- '$APP_PATH'" << 'EOF'
             set -euo pipefail
             cd "$1"
 
@@ -107,16 +101,7 @@ jobs:
             # Always bring the site back up, even if a step below fails.
             trap 'php artisan up' EXIT
 
-            if [ "$2" = "true" ]; then
-              # Opt-in only (manual run with "fresh_database" ticked): drops every table and reseeds.
-              # --env bypasses DB::prohibitDestructiveCommands(), which blocks this in production.
-              echo "fresh_database=true: wiping and reseeding the database"
-              php artisan config:clear
-              php artisan migrate:fresh --seed --force --env=fresh-deploy
-            else
-              php artisan migrate --force
-            fi
-
+            php artisan migrate --force
             php artisan storage:link || true
 
             php artisan optimize:clear
