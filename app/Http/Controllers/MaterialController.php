@@ -3,10 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\Material;
+use App\Models\MaterialContainer;
+use App\Models\MaterialPackSize;
 use App\Models\PurchaseItem;
+use App\Services\ContainerService;
+use App\Services\KitGroups;
 use App\Services\StockService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -19,16 +24,47 @@ class MaterialController extends Controller
     {
         return Inertia::render('materials/index', [
             'materials' => Material::query()->orderByDesc('is_purchasable')->orderBy('name')->get(),
+            'openContainers' => MaterialContainer::query()->with('material:id,name,unit')->whereNull('finished_on')->orderBy('opened_on')->get(),
         ]);
     }
 
-    public function show(Material $material): Response
+    public function show(Material $material, ContainerService $containers): Response
     {
         return Inertia::render('materials/show', [
             'material' => $material,
             'movements' => $material->movements()->latest('moved_on')->latest('id')->limit(200)->get(),
             'purchases' => PurchaseItem::query()->with('purchase:id,purchase_no,purchased_on')->where('material_id', $material->id)->latest('id')->limit(20)->get(),
+            'packSizes' => $this->packSizesWithPrices($material),
+            'containers' => $material->containers()->orderByRaw('finished_on is not null')->latest('opened_on')->latest('id')->limit(50)->get()
+                ->map(fn (MaterialContainer $container) => $container->toArray() + [
+                    'suggested_kits' => $container->finished_on ? null : $containers->kitsSinceOpened($container),
+                ]),
+            'measured' => $containers->measured($material),
         ]);
+    }
+
+    /**
+     * Each pack size with the price paid the last time it was bought.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function packSizesWithPrices(Material $material): Collection
+    {
+        return $material->packSizes()->get()->map(function (MaterialPackSize $packSize) {
+            $last = PurchaseItem::query()->select('purchase_items.*')
+                ->join('purchases', 'purchases.id', '=', 'purchase_items.purchase_id')
+                ->where('material_pack_size_id', $packSize->id)
+                ->orderByDesc('purchases.purchased_on')->orderByDesc('purchase_items.id')
+                ->first();
+
+            return [
+                'id' => $packSize->id,
+                'name' => $packSize->name,
+                'size' => $packSize->size,
+                'last_price' => $last ? round($last->line_cost / $last->qty, 2) : null,
+                'last_unit_cost' => $last?->landed_unit_cost,
+            ];
+        });
     }
 
     public function store(Request $request, StockService $stock): RedirectResponse
@@ -124,6 +160,8 @@ class MaterialController extends Controller
             'unit' => ['required', 'string', 'max:20'],
             'is_purchasable' => ['required', 'boolean'],
             'tracks_stock' => ['required', 'boolean'],
+            'track_by_container' => ['sometimes', 'boolean'],
+            'kit_group' => ['sometimes', 'nullable', Rule::in(KitGroups::ALL)],
             'purchase_unit' => ['nullable', 'string', 'max:20'],
             'purchase_conversion' => ['nullable', 'numeric', 'gt:0'],
             'cost_source' => ['required', Rule::in(['purchase', 'manual'])],

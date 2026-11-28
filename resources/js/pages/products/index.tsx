@@ -18,7 +18,7 @@ export default function Products({ products: rows, categories, filters }: { prod
         <>
             <Head title="Kits" />
             <Page>
-                <PageHeader title="Kits" description="Your figure sets that you sell. Each kit has options (1 figure 2 paints...) built from your components.">
+                <PageHeader title="Kits" description="Your themes, such as Astronaut Kit. Each kit has the products you sell (1 figure 2 paints...), built from your components.">
                     <NativeSelect className="w-52" value={filters.category ?? ''} onChange={(e) => router.get(products.index.url(), e.target.value ? { category: e.target.value } : {})}>
                         <option value="">All categories</option>
                         {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -27,7 +27,7 @@ export default function Products({ products: rows, categories, filters }: { prod
                 </PageHeader>
                 <Panel flush>
                     <Table>
-                        <thead><tr><th>Code</th><th>Name</th><th>Category</th><th className="text-right">Options</th></tr></thead>
+                        <thead><tr><th>Code</th><th>Name</th><th>Category</th><th className="text-right">Products</th></tr></thead>
                         <tbody>
                             {rows.length === 0 && <EmptyRow colSpan={4}>No kits yet.</EmptyRow>}
                             {rows.map((p) => (

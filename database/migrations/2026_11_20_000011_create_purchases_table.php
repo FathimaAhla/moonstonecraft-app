@@ -20,6 +20,7 @@ return new class extends Migration
             $table->decimal('grand_total', 12, 2)->default(0);
             $table->boolean('refreshment_as_stock_cost')->default(false);
             $table->text('notes')->nullable();
+            $table->string('receipt_path')->nullable();
             $table->timestamps();
         });
     }

@@ -6,6 +6,7 @@ use App\Models\Category;
 use App\Models\Component;
 use App\Models\Material;
 use App\Models\Product;
+use App\Services\KitCounts;
 use Illuminate\Database\Seeder;
 use RuntimeException;
 
@@ -56,6 +57,7 @@ class PaintingKitSeeder extends Seeder
                 ['component_id' => $assembly->id, 'qty' => 1],
                 ['component_id' => $component('PCK-'.strtoupper($row['size']))->id, 'qty' => 1],
             ]);
+            app(KitCounts::class)->sync($option);
         }
     }
 

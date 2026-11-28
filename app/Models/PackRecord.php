@@ -6,6 +6,7 @@ use Database\Factories\PackRecordFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * One packing event: the option's real contents, usage and cost at that moment.
@@ -39,5 +40,15 @@ class PackRecord extends Model
     public function option(): BelongsTo
     {
         return $this->belongsTo(ProductOption::class, 'product_option_id');
+    }
+
+    /**
+     * Figure sets and paint sets recorded as packed into these kits.
+     *
+     * @return HasMany<SaleItemAssignment, $this>
+     */
+    public function assignments(): HasMany
+    {
+        return $this->hasMany(SaleItemAssignment::class);
     }
 }

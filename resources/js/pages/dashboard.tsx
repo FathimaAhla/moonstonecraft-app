@@ -83,7 +83,7 @@ export default function Dashboard({ month, summary }: { month: string; summary: 
                         )}
                     </Panel>
 
-                    <Panel title="Top 5 options by profit">
+                    <Panel title="Top 5 products by profit">
                         <Table>
                             <thead><tr><th>Code</th><th>Name</th><th className="text-right">Qty</th><th className="text-right">Profit</th></tr></thead>
                             <tbody>

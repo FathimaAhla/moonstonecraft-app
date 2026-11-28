@@ -8,17 +8,17 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('stage_lines', function (Blueprint $table) {
+        Schema::create('material_pack_sizes', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('component_stage_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('material_id')->constrained()->restrictOnDelete();
-            $table->decimal('qty', 14, 3);
+            $table->foreignId('material_id')->constrained()->cascadeOnDelete();
+            $table->string('name', 20);
+            $table->decimal('size', 14, 4);
             $table->timestamps();
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('stage_lines');
+        Schema::dropIfExists('material_pack_sizes');
     }
 };

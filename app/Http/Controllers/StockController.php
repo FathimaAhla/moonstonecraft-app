@@ -6,14 +6,18 @@ use App\Models\Component;
 use App\Models\PackRecord;
 use App\Models\ProductOption;
 use App\Models\StockMovement;
+use App\Services\AssignmentService;
 use App\Services\Costing;
 use App\Services\KitStockService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use InvalidArgumentException;
 
 /**
  * Part stock (figures, paint pots you make) and ready kit stock: make, pack, unpack, correct.
@@ -72,21 +76,47 @@ class StockController extends Controller
         }
 
         $kits->make($component, (float) $data['qty'], Carbon::parse($data['made_on']), $data['note'] ?? null);
-        $this->toast("Added {$data['qty']} × {$component->name} to stock. Materials are deducted when it is packed or sold.");
+        $this->toast($component->uses_materials_when_made
+            ? "Added {$data['qty']} × {$component->name} to stock. The paint and pots used are taken out of stock now."
+            : "Added {$data['qty']} × {$component->name} to stock. Materials are deducted when it is packed or sold.");
 
         return back();
     }
 
-    public function pack(Request $request, ProductOption $option, KitStockService $kits): RedirectResponse
+    /**
+     * Pack kits. Saying which figure sets and paint sets went in is optional: those leave stock
+     * now and later sales of these kits use them without taking stock again.
+     */
+    public function pack(Request $request, ProductOption $option, KitStockService $kits, AssignmentService $assignments): RedirectResponse
     {
         $data = $this->qtyRules($request, 'packed_on');
-        $kits->pack($option, (float) $data['qty'], Carbon::parse($data['packed_on']), $data['note'] ?? null);
+        $rows = $request->validate([
+            'assign' => ['nullable', 'array'],
+            'assign.figures' => ['nullable', 'array'],
+            'assign.figures.*.combo_id' => ['nullable', 'integer', 'exists:figure_combos,id'],
+            'assign.figures.*.designs' => ['nullable', 'array'],
+            'assign.figures.*.designs.*' => ['integer', 'min:0', 'max:12'],
+            'assign.figures.*.qty' => ['required', 'numeric', 'gt:0'],
+            'assign.paint' => ['nullable', 'array'],
+            'assign.paint.*.component_id' => ['required', 'integer', 'exists:components,id'],
+            'assign.paint.*.qty' => ['required', 'numeric', 'gt:0'],
+        ])['assign'] ?? [];
+
+        try {
+            DB::transaction(function () use ($kits, $assignments, $option, $data, $rows) {
+                $record = $kits->pack($option, (float) $data['qty'], Carbon::parse($data['packed_on']), $data['note'] ?? null);
+                $assignments->recordForPacking($record, $rows);
+            });
+        } catch (InvalidArgumentException $exception) {
+            throw ValidationException::withMessages(['assign' => $exception->getMessage()]);
+        }
+
         $this->toast("Packed {$data['qty']} × {$option->code}.");
 
         return back();
     }
 
-    public function unpack(Request $request, ProductOption $option, KitStockService $kits): RedirectResponse
+    public function unpack(Request $request, ProductOption $option, KitStockService $kits, AssignmentService $assignments): RedirectResponse
     {
         $data = $this->qtyRules($request, 'packed_on');
 
@@ -95,6 +125,7 @@ class StockController extends Controller
         }
 
         $result = $kits->unpack($option, (float) $data['qty'], Carbon::parse($data['packed_on']), $data['note'] ?? null);
+        $assignments->shrinkPacked($option);
 
         if ($result['unknown_qty'] > 0) {
             $this->toast("Unpacked {$data['qty']} × {$option->code}. {$result['unknown_qty']} of them were packed before contents were recorded, so nothing could be restored for those: their original contents are unknown.", 'warning');

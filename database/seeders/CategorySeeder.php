@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Category;
+use App\Services\KitCounts;
 use Illuminate\Database\Seeder;
 
 class CategorySeeder extends Seeder
@@ -21,7 +22,11 @@ class CategorySeeder extends Seeder
         ];
 
         foreach ($categories as $sort => [$name, $prefix]) {
-            Category::query()->updateOrCreate(['code_prefix' => $prefix], ['name' => $name, 'sort' => $sort]);
+            Category::query()->updateOrCreate(['code_prefix' => $prefix], [
+                'name' => $name,
+                'sort' => $sort,
+                'kit_picks' => $prefix === 'PNT' ? KitCounts::PICKS_FIGURES_PAINT : KitCounts::PICKS_NONE,
+            ]);
         }
     }
 }

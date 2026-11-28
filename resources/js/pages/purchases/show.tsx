@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { DeleteButton, Page, PageHeader, Panel, Table, num, rs } from '@/components/ops';
 import * as purchases from '@/routes/purchases';
@@ -16,6 +16,7 @@ export default function PurchaseShow({ purchase: p }: { purchase: Purchase }) {
             <Page>
                 <PageHeader title={p.purchase_no} description={`${p.purchased_on.slice(0, 10)} · ${p.supplier?.name ?? 'No supplier'}`}>
                     {p.receipt_path && <Button variant="outline" asChild><a href={purchases.receipt.url(p.id)} target="_blank" rel="noreferrer">View receipt</a></Button>}
+                    <Button variant="outline" asChild><Link href={purchases.edit(p.id)}>Edit</Link></Button>
                     <DeleteButton url={purchases.destroy.url(p.id)} message="Delete this purchase? Tracked stock is reversed. Weighted-average costs of tracked items are not rolled back." />
                 </PageHeader>
                 <Panel title="Allocation">

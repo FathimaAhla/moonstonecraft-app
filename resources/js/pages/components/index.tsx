@@ -1,4 +1,5 @@
 import { Head, Link, useForm } from '@inertiajs/react';
+import { KitGroupSelect } from '@/components/kit-group-select';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
@@ -11,7 +12,7 @@ type Row = { id: number; code: string; name: string; active: boolean; stages_cou
 
 export default function Components({ components: rows, categories }: { components: Row[]; categories: { id: number; name: string }[] }) {
     const [open, setOpen] = useState(false);
-    const form = useForm({ category_id: '', code: 'CMP-', name: '', yield_qty: '1', wastage_pct: '0', keeps_stock: false, active: true });
+    const form = useForm({ category_id: '', code: 'CMP-', name: '', kit_group: '', yield_qty: '1', wastage_pct: '0', keeps_stock: false, active: true });
 
     return (
         <>
@@ -51,6 +52,7 @@ export default function Components({ components: rows, categories }: { component
                             {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </NativeSelect>
                     </Field>
+                    <Field label="Kit builder section" error={form.errors.kit_group}><KitGroupSelect value={form.data.kit_group} onChange={(v) => form.setData('kit_group', v)} /></Field>
                     <Field label="Yield per batch" error={form.errors.yield_qty}><NumberInput value={form.data.yield_qty} onChange={(e) => form.setData('yield_qty', e.target.value)} /></Field>
                     <Field label="Planned wastage %" error={form.errors.wastage_pct}><NumberInput value={form.data.wastage_pct} onChange={(e) => form.setData('wastage_pct', e.target.value)} /></Field>
                 </div>

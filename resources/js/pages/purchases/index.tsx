@@ -1,6 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
+import { Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Page, PageHeader, Pagination, Panel, Table, rs } from '@/components/ops';
+import { DeleteButton, Page, PageHeader, Pagination, Panel, Table, rs } from '@/components/ops';
 import type { Paginated } from '@/components/ops';
 import * as purchases from '@/routes/purchases';
 
@@ -16,7 +17,7 @@ export default function Purchases({ purchases: page }: { purchases: Paginated<Ro
                 </PageHeader>
                 <Panel flush>
                     <Table>
-                        <thead><tr><th>No.</th><th>Date</th><th>Supplier</th><th className="text-right">Lines</th><th className="text-right">Items</th><th className="text-right">Extras</th><th className="text-right">Grand total</th></tr></thead>
+                        <thead><tr><th>No.</th><th>Date</th><th>Supplier</th><th className="text-right">Lines</th><th className="text-right">Items</th><th className="text-right">Extras</th><th className="text-right">Grand total</th><th /></tr></thead>
                         <tbody>
                             {page.data.map((p) => (
                                 <tr key={p.id}>
@@ -27,6 +28,12 @@ export default function Purchases({ purchases: page }: { purchases: Paginated<Ro
                                     <td className="text-right tabular-nums">{rs(p.items_total)}</td>
                                     <td className="text-right tabular-nums">{rs(p.transport_cost + p.refreshment_cost + p.other_cost)}</td>
                                     <td className="text-right font-medium tabular-nums">{rs(p.grand_total)}</td>
+                                    <td className="text-right">
+                                        <div className="flex justify-end gap-1">
+                                            <Button variant="ghost" size="icon" asChild><Link href={purchases.edit(p.id)}><Pencil className="size-4" /></Link></Button>
+                                            <DeleteButton url={purchases.destroy.url(p.id)} message="Delete this purchase? Tracked stock is reversed. Weighted-average costs of tracked items are not rolled back." />
+                                        </div>
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>

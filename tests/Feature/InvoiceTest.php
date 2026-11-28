@@ -44,7 +44,10 @@ test('signed customer link works and a tampered link is refused', function () {
     $url = URL::temporarySignedRoute('invoice.public', now()->addDays(30), $this->sale);
 
     $this->get($url)->assertOk()->assertHeader('Content-Type', 'application/pdf');
-    $this->get(preg_replace('/signature=\w/', 'signature=0', $url))->assertForbidden();
+    $tampered = preg_replace_callback('/signature=(\w)/', fn (array $match) => 'signature='.($match[1] === '0' ? '1' : '0'), $url);
+
+    expect($tampered)->not->toBe($url);
+    $this->get($tampered)->assertForbidden();
     $this->get(route('invoice.public', $this->sale))->assertForbidden();
 });
 

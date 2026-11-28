@@ -67,9 +67,9 @@ export default function StockIndex({ components: parts, options: kits, movements
 
                 <Panel title="Kits: ready and can make" flush>
                     <Table>
-                        <thead><tr><th>Option</th><th className="text-right">Packed</th><th className="text-right">Can make</th><th>Limited by</th><th className="text-right">Cost</th><th className="text-right">Price</th><th /></tr></thead>
+                        <thead><tr><th>Product</th><th className="text-right">Packed</th><th className="text-right">Can make</th><th>Limited by</th><th className="text-right">Cost</th><th className="text-right">Price</th><th /></tr></thead>
                         <tbody>
-                            {kits.length === 0 && <EmptyRow colSpan={7}>No kit options yet.</EmptyRow>}
+                            {kits.length === 0 && <EmptyRow colSpan={7}>No products yet.</EmptyRow>}
                             {kits.map((k) => (
                                 <tr key={k.id}>
                                     <td><Link href={options.show(k.id)} className="font-medium hover:underline">{k.code}</Link> <span className="text-muted-foreground">{k.product} - {k.name}</span></td>
@@ -89,7 +89,7 @@ export default function StockIndex({ components: parts, options: kits, movements
                             ))}
                         </tbody>
                     </Table>
-                    <p className="border-t px-4 py-2 text-xs text-muted-foreground">Can make counts parts in stock as if you make only that option. Parts are shared, so packing one option lowers the others.</p>
+                    <p className="border-t px-4 py-2 text-xs text-muted-foreground">Can make counts parts in stock as if you make only that product. Parts are shared, so packing one product lowers the others.</p>
                 </Panel>
 
                 <Panel title="Packing records" flush>
@@ -99,7 +99,7 @@ export default function StockIndex({ components: parts, options: kits, movements
                         </p>
                     )}
                     <Table>
-                        <thead><tr><th>Date</th><th>Option</th><th className="text-right">Packed</th><th className="text-right">Left</th><th className="text-right">Unit cost</th><th>Saved contents</th></tr></thead>
+                        <thead><tr><th>Date</th><th>Product</th><th className="text-right">Packed</th><th className="text-right">Left</th><th className="text-right">Unit cost</th><th>Saved contents</th></tr></thead>
                         <tbody>
                             {packRecords.length === 0 && <EmptyRow colSpan={6}>Nothing packed yet.</EmptyRow>}
                             {packRecords.map((r) => (

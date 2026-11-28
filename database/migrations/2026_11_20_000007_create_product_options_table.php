@@ -6,6 +6,9 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * A product you sell. Painting kits keep how many figures and paint pots each kit takes.
+     */
     public function up(): void
     {
         Schema::create('product_options', function (Blueprint $table) {
@@ -17,6 +20,10 @@ return new class extends Migration
             $table->decimal('wholesale_price', 12, 2)->nullable();
             $table->foreignId('courier_packing_component_id')->nullable()->constrained('components')->nullOnDelete();
             $table->decimal('courier_fee_estimate', 12, 2)->default(0);
+            $table->unsignedTinyInteger('figures_per_kit')->default(0);
+            $table->unsignedTinyInteger('paint_pots_per_kit')->default(0);
+            $table->decimal('stock', 14, 3)->default(0);
+            $table->decimal('reorder_level', 14, 3)->default(0);
             $table->boolean('active')->default(true);
             $table->timestamps();
         });

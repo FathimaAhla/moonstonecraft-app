@@ -26,7 +26,7 @@ class PurchaseController extends Controller
     public function create(): Response
     {
         return Inertia::render('purchases/create', [
-            'materials' => Material::query()->where('is_purchasable', true)->orderBy('name')->get(['id', 'name', 'unit', 'unit_cost', 'purchase_unit', 'purchase_conversion']),
+            'materials' => Material::query()->with('packSizes:id,material_id,name,size')->where('is_purchasable', true)->orderBy('name')->get(['id', 'name', 'unit', 'unit_cost', 'purchase_unit', 'purchase_conversion']),
             'suppliers' => Supplier::query()->orderBy('name')->get(['id', 'name']),
         ]);
     }
@@ -48,6 +48,36 @@ class PurchaseController extends Controller
         }
 
         $this->toast("Purchase {$purchase->purchase_no} saved.");
+
+        return to_route('purchases.show', $purchase);
+    }
+
+    public function edit(Purchase $purchase): Response
+    {
+        return Inertia::render('purchases/edit', [
+            'purchase' => $purchase->load('items.material:id,name,unit'),
+            'materials' => Material::query()->with('packSizes:id,material_id,name,size')->where('is_purchasable', true)->orderBy('name')->get(['id', 'name', 'unit', 'unit_cost', 'purchase_unit', 'purchase_conversion']),
+            'suppliers' => Supplier::query()->orderBy('name')->get(['id', 'name']),
+        ]);
+    }
+
+    public function update(StorePurchaseRequest $request, Purchase $purchase, PurchaseService $service): RedirectResponse
+    {
+        $data = $request->validated();
+
+        if (empty($data['supplier_id']) && filled($data['supplier_name'] ?? null)) {
+            $data['supplier_id'] = Supplier::query()->firstOrCreate(['name' => trim($data['supplier_name'])])->id;
+        }
+
+        $lines = $data['lines'];
+        unset($data['lines'], $data['supplier_name'], $data['receipt']);
+        $service->update($purchase, $data, $lines);
+
+        if ($request->hasFile('receipt')) {
+            $purchase->update(['receipt_path' => $request->file('receipt')->store('receipts', 'local')]);
+        }
+
+        $this->toast("Purchase {$purchase->purchase_no} updated.");
 
         return to_route('purchases.show', $purchase);
     }

@@ -27,6 +27,8 @@ class Component extends Model
             'yield_qty' => 'float',
             'wastage_pct' => 'float',
             'keeps_stock' => 'boolean',
+            'uses_materials_when_made' => 'boolean',
+            'pot_colours' => 'array',
             'stock' => 'float',
             'prededucted_stock' => 'float',
             'reorder_level' => 'float',
@@ -38,6 +40,16 @@ class Component extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
+    }
+
+    /**
+     * The kit (theme) a figure design or figure set belongs to.
+     *
+     * @return BelongsTo<Product, $this>
+     */
+    public function kit(): BelongsTo
+    {
+        return $this->belongsTo(Product::class, 'product_id');
     }
 
     /** @return HasMany<ComponentStage, $this> */

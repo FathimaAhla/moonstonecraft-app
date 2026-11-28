@@ -12,7 +12,11 @@ return new class extends Migration
             $table->id();
             $table->foreignId('purchase_id')->constrained()->cascadeOnDelete();
             $table->foreignId('material_id')->constrained()->restrictOnDelete();
+            $table->foreignId('material_pack_size_id')->nullable()->constrained()->nullOnDelete();
             $table->decimal('qty', 14, 3);
+            $table->string('purchase_unit', 20)->nullable();
+            $table->decimal('conversion_factor', 14, 4)->default(1);
+            $table->decimal('converted_qty', 14, 3)->nullable();
             $table->decimal('line_cost', 12, 2);
             $table->decimal('extra_allocated', 12, 2)->default(0);
             $table->decimal('landed_unit_cost', 14, 4);

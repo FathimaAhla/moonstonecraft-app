@@ -11,7 +11,7 @@ import * as options from '@/routes/options';
 import * as products from '@/routes/products';
 
 type Product = { id: number; code: string; name: string; category_id: number; category: string; notes: string | null; active: boolean };
-type Option = { id: number; code: string; name: string; retail_price: number; wholesale_price: number | null; active: boolean; cost: number; cost_courier: number };
+type Option = { id: number; code: string; name: string; retail_price: number; wholesale_price: number | null; active: boolean; cost: number; cost_courier: number; figures_per_kit: number; paint_pots_per_kit: number };
 
 export default function ProductShow({ product, options: optionRows, categories }: { product: Product; options: Option[]; categories: { id: number; name: string }[] }) {
     const [open, setOpen] = useState(false);
@@ -29,11 +29,11 @@ export default function ProductShow({ product, options: optionRows, categories }
 
                 {product.notes && <p className="text-sm text-muted-foreground">{product.notes}</p>}
 
-                <Panel title="Options" flush actions={<Button size="sm" asChild><Link href={options.create(product.id)}><Plus /> Add option</Link></Button>}>
+                <Panel title="Products" flush actions={<Button size="sm" asChild><Link href={options.create(product.id)}><Plus /> Add product</Link></Button>}>
                     <Table>
-                        <thead><tr><th>Code</th><th>Name</th><th className="text-right">Kit cost</th><th className="text-right">Retail</th><th className="text-right">Profit</th><th className="text-right">Profit %</th><th className="text-right">Profit w/ courier</th><th className="text-right">Wholesale</th></tr></thead>
+                        <thead><tr><th>Code</th><th>Name</th><th>Picked when selling</th><th className="text-right">Kit cost</th><th className="text-right">Retail</th><th className="text-right">Profit</th><th className="text-right">Profit %</th><th className="text-right">Profit w/ courier</th><th className="text-right">Wholesale</th></tr></thead>
                         <tbody>
-                            {optionRows.length === 0 && <EmptyRow colSpan={8}>No options yet. Add one and pick its figure, paints and packing.</EmptyRow>}
+                            {optionRows.length === 0 && <EmptyRow colSpan={9}>No products yet. Add one and pick its figure, paints and packing.</EmptyRow>}
                             {optionRows.map((o) => {
                                 const profit = o.retail_price - o.cost;
 
@@ -41,6 +41,9 @@ export default function ProductShow({ product, options: optionRows, categories }
                                     <tr key={o.id} className={o.active ? '' : 'opacity-50'}>
                                         <td className="font-mono"><Link href={options.show(o.id)} className="hover:underline">{o.code}</Link></td>
                                         <td><Link href={options.show(o.id)} className="font-medium hover:underline">{o.name}</Link></td>
+                                        <td className="text-xs">
+                                            {[o.figures_per_kit > 0 && `${o.figures_per_kit} figures`, o.paint_pots_per_kit > 0 && `${o.paint_pots_per_kit}-pot paint set`].filter(Boolean).join(' · ') || <span className="text-muted-foreground">-</span>}
+                                        </td>
                                         <td className="text-right tabular-nums">{rs(o.cost)}</td>
                                         <td className="text-right font-medium tabular-nums">{rs(o.retail_price)}</td>
                                         <td className={cn('text-right tabular-nums', profit < 0 ? 'text-brand-coral' : 'text-brand-leaf')}>{rs(profit)}</td>
